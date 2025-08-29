@@ -1,0 +1,525 @@
+{
+  "_source_id": 72,
+  "sources": {
+    "دراسة مفصلة لمنصة Bugcrowd": {
+      "https://docs.bugcrowd.com/api/getting-started/": {
+        "id": 1,
+        "publisher": "Bugcrowd Official Documentation",
+        "url": "https://docs.bugcrowd.com/api/getting-started/",
+        "title": "Getting Started with the API - Bugcrowd Docs",
+        "info": "معلومات شاملة حول واجهات برمجة التطبيقات لـ Bugcrowd، طرق المصادقة، معدلات الطلبات (60 طلب/دقيقة)، دعم IPv4، وإدارة الرموز المميزة"
+      },
+      "https://docs.bugcrowd.com/researchers/onboarding/becoming-a-researcher/": {
+        "id": 2,
+        "publisher": "Bugcrowd Official Documentation",
+        "url": "https://docs.bugcrowd.com/researchers/onboarding/becoming-a-researcher/",
+        "title": "Becoming a Researcher | Bugcrowd Docs",
+        "info": "متطلبات وعملية انضمام الباحثين، شروط التحقق من الهوية للبرامج الخاصة، قواعد السلوك والشروط القياسية"
+      },
+      "https://www.bugcrowd.com/blog/crowdsourced-intelligence-in-action-bugcrowds-2024-year-in-review/": {
+        "id": 3,
+        "publisher": "Bugcrowd Official Blog",
+        "url": "https://www.bugcrowd.com/blog/crowdsourced-intelligence-in-action-bugcrowds-2024-year-in-review/",
+        "title": "Bugcrowd's 2024 Year in Review",
+        "info": "تقرير شامل يوضح نمو 75% في أعمال اختبار الاختراق، 2000 عملية مباشرة، 300 عميل جديد، 152 مليون دولار تمويل، وإطلاق منتجات الذكاء الاصطناعي"
+      },
+      "https://www.bugcrowd.com/products/platform/": {
+        "id": 4,
+        "publisher": "Bugcrowd Official Website",
+        "url": "https://www.bugcrowd.com/products/platform/",
+        "title": "Bugcrowd Platform Overview",
+        "info": "تفاصيل شاملة حول منصة Bugcrowd مع 350+ مجموعة مهارات، تقنية CrowdMatch AI، خدمة فرز مُدارة، وبيانات 12+ سنة من آلاف المشاركات"
+      },
+      "https://www.bugcrowd.com/blog/how-we-measure-researcher-performance/": {
+        "id": 5,
+        "publisher": "Bugcrowd Official Blog",
+        "url": "https://www.bugcrowd.com/blog/how-we-measure-researcher-performance/",
+        "title": "How we Measure Researcher Performance",
+        "info": "نظام تقييم الأداء للباحثين: متطلبات البرامج الخاصة (4 إرسالات + دقة 50%+ خلال 90 يوم)، نظام النقاط، معدل الدقة، والنسب المئوية"
+      },
+      "https://forum.bugcrowd.com/t/researcher-resources-getting-started/115": {
+        "id": 6,
+        "publisher": "Bugcrowd Community Forum",
+        "url": "https://forum.bugcrowd.com/t/researcher-resources-getting-started/115",
+        "title": "Researcher Resources - Getting Started",
+        "info": "موارد شاملة للباحثين: 321 مهارة متخصصة، متوسط وقت فرز 8.6 ساعة، متوسط مكافأة P1 أكثر من 3,250 دولار، مجموعات تدريب متنوعة"
+      }
+    },
+    "منصة HackerOne - البحث الشامل": {
+      "https://api.hackerone.com/getting-started/": {
+        "id": 7,
+        "publisher": "HackerOne Inc.",
+        "url": "https://api.hackerone.com/getting-started/",
+        "title": "دليل HackerOne API الرسمي - البدء",
+        "info": "وثائق شاملة حول APIs المتاحة، متطلبات المصادقة، حدود الاستخدام، وأمثلة عملية. يدعم REST API مع تنسيق JSON ويوفر أكثر من 200 نقطة وصول مختلفة لإدارة التقارير والبرامج."
+      },
+      "https://www.hackerone.com/terms/community": {
+        "id": 8,
+        "publisher": "HackerOne Inc.",
+        "url": "https://www.hackerone.com/terms/community",
+        "title": "شروط وأحكام مجتمع HackerOne",
+        "info": "قواعد وشروط شاملة للباحثين الأمنيين تشمل السلوك المطلوب، القيود القانونية، متطلبات الأهلية، نظام المكافآت، والالتزامات الضريبية."
+      },
+      "https://www.hackerone.com/press-release/hackers-surpass-300-million-all-time-earnings-hackerone-platform": {
+        "id": 9,
+        "publisher": "HackerOne Inc.",
+        "url": "https://www.hackerone.com/press-release/hackers-surpass-300-million-all-time-earnings-hackerone-platform",
+        "title": "الباحثون يتجاوزون 300 مليون دولار في الأرباح الإجمالية",
+        "info": "إحصائيات رسمية تظهر أن المنصة وزعت أكثر من 300 مليون دولار، 30 باحث كسب أكثر من مليون دولار، أعلى باحث كسب 4 مليون دولار، وأعلى مكافأة واحدة بلغت 100,050 دولار."
+      },
+      "https://docs.hackerone.com/en/articles/8365227-hacker-success-guide": {
+        "id": 10,
+        "publisher": "HackerOne Inc.",
+        "url": "https://docs.hackerone.com/en/articles/8365227-hacker-success-guide",
+        "title": "دليل نجاح الباحثين الأمنيين",
+        "info": "دليل شامل للمبتدئين يشمل خطوات البدء، التدريب عبر Hacker101، CTF، انضمام لبرامج خاصة، والنصائح العملية للنجاح في مجال Bug Bounty."
+      },
+      "https://docs.hackerone.com/en/articles/8368965-vdp-vs-bbp": {
+        "id": 11,
+        "publisher": "HackerOne Inc.",
+        "url": "https://docs.hackerone.com/en/articles/8368965-vdp-vs-bbp",
+        "title": "الفروقات بين VDP و Bug Bounty Programs",
+        "info": "شرح مفصل للاختلافات بين برامج الكشف عن الثغرات (VDP) التي تركز على التوجيه وبرامج المكافآت (BBP) التي تقدم حوافز مالية، مع تفاصيل المكونات المطلوبة لكل نوع."
+      },
+      "https://docs.hackerone.com/en/articles/8495674-severity": {
+        "id": 12,
+        "publisher": "HackerOne Inc.",
+        "url": "https://docs.hackerone.com/en/articles/8495674-severity",
+        "title": "نظام تقييم الخطورة والمكافآت",
+        "info": "شرح شامل لنظام CVSS المستخدم في تقييم خطورة الثغرات (3.0, 3.1, 4.0) وكيفية ربطه بنطاقات المكافآت وتوصيات الدفع للمؤسسات."
+      }
+    },
+    "دراسة إمكانيات التكامل مع APIs منصات Bug Bounty": {
+      "https://api.hackerone.com/": {
+        "id": 13,
+        "publisher": "HackerOne",
+        "url": "https://api.hackerone.com/",
+        "title": "HackerOne API Documentation",
+        "info": "توثيق رسمي لـ API HackerOne يشمل إمكانيات سحب التقارير، الوصول لمعلومات البرنامج، منح المكافآت، واستيراد النتائج الخارجية"
+      },
+      "https://docs.bugcrowd.com/api/getting-started/": {
+        "id": 14,
+        "publisher": "Bugcrowd",
+        "url": "https://docs.bugcrowd.com/api/getting-started/",
+        "title": "Bugcrowd API Getting Started Guide",
+        "info": "دليل البدء مع API Bugcrowd، يشمل حدود الاستخدام (60 طلب/دقيقة)، إعداد API tokens، والتكامل مع التطبيقات الخارجية"
+      },
+      "https://docs.cobalt.io/cobalt-api/": {
+        "id": 15,
+        "publisher": "Cobalt",
+        "url": "https://docs.cobalt.io/cobalt-api/",
+        "title": "Cobalt API Documentation",
+        "info": "توثيق API RESTful لـ Cobalt يتيح الوصول للأصول، pentests، والنتائج مع إمكانيات التكامل في workflows التطوير"
+      },
+      "http://kb.intigriti.com/en/articles/6117846-intigriti-api": {
+        "id": 16,
+        "publisher": "Intigriti",
+        "url": "http://kb.intigriti.com/en/articles/6117846-intigriti-api",
+        "title": "Intigriti API Overview",
+        "info": "معلومات عن API Intigriti V2 و V2.1 Beta مع إمكانيات التكامل مع الأنظمة الخلفية للشركات وأنظمة المكافآت"
+      },
+      "https://github.com/projectdiscovery/notify": {
+        "id": 17,
+        "publisher": "ProjectDiscovery",
+        "url": "https://github.com/projectdiscovery/notify",
+        "title": "Notify - Notification Tool",
+        "info": "أداة Go لبث مخرجات الأدوات وإرسال الإشعارات عبر منصات متعددة، مفيدة في أتمتة bug bounty workflows"
+      },
+      "https://github.com/yogeshojha/rengine": {
+        "id": 18,
+        "publisher": "yogeshojha",
+        "url": "https://github.com/yogeshojha/rengine",
+        "title": "reNgine - Automated Reconnaissance Framework",
+        "info": "إطار عمل استطلاع آلي يدعم التكامل مع HackerOne وإرسال التقارير تلقائياً، يشمل BountyHub للتزامن مع برامج HackerOne"
+      },
+      "https://github.com/vavkamil/awesome-bugbounty-tools": {
+        "id": 19,
+        "publisher": "vavkamil",
+        "url": "https://github.com/vavkamil/awesome-bugbounty-tools",
+        "title": "Awesome Bug Bounty Tools Collection",
+        "info": "مجموعة شاملة من أدوات bug bounty مع التركيز على الأدوات التي تدعم التكامل مع APIs والأتمتة"
+      },
+      "https://medium.com/meetcyber/automated-bug-bounty-workflow-complete-implementation-guide-bb052356b4a5": {
+        "id": 20,
+        "publisher": "MeetCyber",
+        "url": "https://medium.com/meetcyber/automated-bug-bounty-workflow-complete-implementation-guide-bb052356b4a5",
+        "title": "Automated Bug Bounty Workflow Implementation Guide",
+        "info": "مقال شامل عن بناء الأتمتة لـ bug bounty workflows باستخدام الأدوات المتاحة والتكامل مع APIs"
+      },
+      "https://labs.detectify.com/ethical-hacking/hakluke-creating-the-perfect-bug-bounty-automation/": {
+        "id": 21,
+        "publisher": "Detectify Labs",
+        "url": "https://labs.detectify.com/ethical-hacking/hakluke-creating-the-perfect-bug-bounty-automation/",
+        "title": "Creating the Perfect Bug Bounty Automation",
+        "info": "مقال Hakluke حول بناء إطار عمل الأتمتة الممتاز لـ bug bounty مع التجارب والإخفاقات"
+      },
+      "https://www.hackerone.com/blog/introducing-hackerones-hai-api-revolutionize-your-workflow-automation-ai": {
+        "id": 22,
+        "publisher": "HackerOne",
+        "url": "https://www.hackerone.com/blog/introducing-hackerones-hai-api-revolutionize-your-workflow-automation-ai",
+        "title": "HackerOne's Hai API: Workflow Automation with AI",
+        "info": "مقدمة HackerOne's Hai API لتحسين أتمتة workflows باستخدام الذكاء الاصطناعي"
+      },
+      "https://www.g2.com/compare/hackerone-hackerone-platform-vs-intigriti": {
+        "id": 23,
+        "publisher": "G2 Platform",
+        "url": "https://www.g2.com/compare/hackerone-hackerone-platform-vs-intigriti",
+        "title": "Bug Bounty Platforms Comparison 2025",
+        "info": "مقارنة شاملة بين منصات bug bounty الرئيسية HackerOne، Bugcrowd، Intigriti في 2025"
+      },
+      "https://anubhav-singh.medium.com/notification-system-for-your-bug-bounty-automation-7b13af1b7372": {
+        "id": 24,
+        "publisher": "Anubhav Singh",
+        "url": "https://anubhav-singh.medium.com/notification-system-for-your-bug-bounty-automation-7b13af1b7372",
+        "title": "Notification System for Bug Bounty Automation",
+        "info": "معلومات حول نظام الإشعارات لـ bug bounty automation باستخدام Discord، Slack، Telegram"
+      }
+    },
+    "تحليل منصات Bug Bounty": {
+      "https://api.hackerone.com/getting-started/": {
+        "id": 25,
+        "publisher": "HackerOne",
+        "url": "https://api.hackerone.com/getting-started/",
+        "title": "HackerOne API Documentation",
+        "info": "وثائق شاملة لـ API تشمل التكامل، أنواع البيانات، المصادقة، حدود المعدل، وأمثلة الاستخدام"
+      },
+      "https://www.intigriti.com/": {
+        "id": 26,
+        "publisher": "Intigriti",
+        "url": "https://www.intigriti.com/",
+        "title": "Intigriti Platform Overview",
+        "info": "معلومات عن منصة Intigriti للأمن السيبراني القائم على التعهيد الجماعي وخدمات Bug Bounty"
+      },
+      "https://www.synack.com/solutions/go-beyond-bug-bounty/": {
+        "id": 27,
+        "publisher": "Synack",
+        "url": "https://www.synack.com/solutions/go-beyond-bug-bounty/",
+        "title": "Synack Solutions Overview",
+        "info": "تفاصيل حول كيفية تجاوز Synack لبرامج Bug Bounty التقليدية والخدمات المتقدمة المقدمة"
+      },
+      "https://www.yeswehack.com/page/yeswehack-epic-edition-lehack-2024": {
+        "id": 28,
+        "publisher": "YesWeHack",
+        "url": "https://www.yeswehack.com/page/yeswehack-epic-edition-lehack-2024",
+        "title": "YesWeHack Platform Features 2024",
+        "info": "معلومات عن منصة YesWeHack وخدماتها والتطورات الحديثة في 2024"
+      },
+      "https://www.bugcrowd.com/products/bug-bounty/": {
+        "id": 29,
+        "publisher": "Bugcrowd",
+        "url": "https://www.bugcrowd.com/products/bug-bounty/",
+        "title": "Bugcrowd Managed Bug Bounty",
+        "info": "معلومات شاملة عن منتجات Bugcrowd بما في ذلك Managed Bug Bounty والميزات والتقنيات المتقدمة"
+      },
+      "https://engineering.fb.com/2025/02/13/security/looking-back-at-our-bug-bounty-program-in-2024/": {
+        "id": 30,
+        "publisher": "Meta",
+        "url": "https://engineering.fb.com/2025/02/13/security/looking-back-at-our-bug-bounty-program-in-2024/",
+        "title": "Meta Bug Bounty Program 2024 Review",
+        "info": "بيانات مفصلة عن برنامج Meta Bug Bounty لعام 2024 بما في ذلك $2.3 مليون من المبالغ المدفوعة و200 باحث"
+      },
+      "https://security.googleblog.com/2025/03/vulnerability-reward-program-2024-in.html": {
+        "id": 31,
+        "publisher": "Google",
+        "url": "https://security.googleblog.com/2025/03/vulnerability-reward-program-2024-in.html",
+        "title": "Google Vulnerability Reward Program 2024 Review",
+        "info": "تفاصيل برنامج Google VRP لعام 2024: $12 مليون مدفوعة لـ600+ باحث، مع تفاصيل حول برامج Android، Chrome، Cloud"
+      },
+      "https://www.intigriti.com/blog/business-insights/adoption-of-cvss-v4-vulnerability-assessment-calculator": {
+        "id": 32,
+        "publisher": "Intigriti",
+        "url": "https://www.intigriti.com/blog/business-insights/adoption-of-cvss-v4-vulnerability-assessment-calculator",
+        "title": "CVSS 4.0 Adoption by Intigriti",
+        "info": "معلومات عن اعتماد Intigriti لنظام CVSS 4.0 وتأثيره على تقييم الثغرات والمكافآت"
+      },
+      "https://gbhackers.com/ai-driven-fake-vulnerability-reports/": {
+        "id": 33,
+        "publisher": "GBHackers",
+        "url": "https://gbhackers.com/ai-driven-fake-vulnerability-reports/",
+        "title": "AI-Driven Fake Vulnerability Reports",
+        "info": "مشكلة التقارير المزيفة المولدة بالذكاء الاصطناعي في منصات Bug Bounty وتأثيرها على النظام البيئي"
+      },
+      "https://infosecwriteups.com/comprehensive-bug-bounty-hunting-checklist-2024-edition-4abb3a9cbe66": {
+        "id": 34,
+        "publisher": "InfoSec Writeups",
+        "url": "https://infosecwriteups.com/comprehensive-bug-bounty-hunting-checklist-2024-edition-4abb3a9cbe66",
+        "title": "Comprehensive Bug Bounty Methodology 2024",
+        "info": "منهجية شاملة لصيد Bug Bounty في 2024 تشمل جميع المراحل من الاستطلاع إلى الإبلاغ"
+      }
+    },
+    "Bug Bounty Target Identification Strategies": {
+      "https://infosecwriteups.com/bug-bounty-target-selection-how-hackers-find-the-most-profitable-juicy-bugs-before-anyone-else-061510e83698": {
+        "id": 35,
+        "publisher": "InfoSec-Write-ups",
+        "url": "https://infosecwriteups.com/bug-bounty-target-selection-how-hackers-find-the-most-profitable-juicy-bugs-before-anyone-else-061510e83698",
+        "title": "Bug Bounty Target Selection: How Hackers Find the Most Profitable Juicy Bugs Before Anyone Else",
+        "info": "استراتيجيات اختيار الأهداف المربحة في Bug Bounty، تتضمن إطار عمل من 3 خطوات، والتركيز على المنهجية والأتمتة وGoogle Dorking"
+      },
+      "https://www.uprootsecurity.com/blog/choosing-the-right-bug-bounty-target-a-hacker-s-guide": {
+        "id": 36,
+        "publisher": "Uproot Security",
+        "url": "https://www.uprootsecurity.com/blog/choosing-the-right-bug-bounty-target-a-hacker-s-guide",
+        "title": "Choosing the right bug bounty target: A hacker's guide",
+        "info": "دليل شامل لاختيار الأهداف المناسبة في برامج Bug Bounty، يغطي المنصات والاستراتيجيات والاستطلاع وبناء سير عمل مستدام"
+      },
+      "https://portswigger.net/daily-swig/million-dollar-bug-bounties-the-rise-of-record-breaking-payouts": {
+        "id": 37,
+        "publisher": "PortSwigger",
+        "url": "https://portswigger.net/daily-swig/million-dollar-bug-bounties-the-rise-of-record-breaking-payouts",
+        "title": "Million-dollar bug bounties: The rise of record-breaking payouts",
+        "info": "تحليل ارتفاع مكافآت Bug Bounty مع أعلى مكافأة وصلت إلى 10 مليون دولار، والاتجاهات في قطاع العملات المشفرة والWeb 3.0"
+      },
+      "https://www.intigriti.com/blog/business-insights/software-industry-top-vulnerabilities-in-2024-and-what-to-watch-for-in-2025": {
+        "id": 38,
+        "publisher": "Intigriti",
+        "url": "https://www.intigriti.com/blog/business-insights/software-industry-top-vulnerabilities-in-2024-and-what-to-watch-for-in-2025",
+        "title": "Software vulnerabilities in 2024",
+        "info": "أهم الثغرات في 2024 وما يجب مراقبته في 2025، تشمل ثغرات التحكم بالوصول وAPI وXSS، مع إحصائيات مفصلة"
+      },
+      "https://security.googleblog.com/2025/03/vulnerability-reward-program-2024-in.html": {
+        "id": 39,
+        "publisher": "Google Security Blog",
+        "url": "https://security.googleblog.com/2025/03/vulnerability-reward-program-2024-in.html",
+        "title": "Vulnerability Reward Program: 2024 in Review",
+        "info": "إحصائيات مفصلة لبرنامج Google Bug Bounty 2024: 12 مليون دولار إلى 660 باحث، 337 تقرير في Chrome بمكافآت 3.4 مليون، مع تفاصيل برامج Android وCloud وAI"
+      },
+      "https://msrc.microsoft.com/blog/2025/08/microsoft-bounty-program-year-in-review-17-million-in-rewards/": {
+        "id": 40,
+        "publisher": "Microsoft Security Response Center",
+        "url": "https://msrc.microsoft.com/blog/2025/08/microsoft-bounty-program-year-in-review-17-million-in-rewards/",
+        "title": "Microsoft Bounty Program year in review: $17 million in rewards",
+        "info": "برنامج مايكروسوفت للمكافآت 2024: رقم قياسي 17 مليون دولار على 344 باحث، حل أكثر من 1000 ثغرة، Zero Day Quest وبرامج متعددة"
+      },
+      "https://www.mend.io/most-secure-programming-languages/": {
+        "id": 41,
+        "publisher": "Mend.io",
+        "url": "https://www.mend.io/most-secure-programming-languages/",
+        "title": "The Most Secure Programming Languages",
+        "info": "تحليل شامل لأامن اللغات البرمجية: C الأكثر عرضة (50% من الثغرات)، Python الأآمن (15% ثغرات حرجة)، مع تفاصيل حول أنواع CWE الشائعة"
+      },
+      "https://www.reflectiz.com/blog/owasp-top-ten-2024/": {
+        "id": 42,
+        "publisher": "Reflectiz",
+        "url": "https://www.reflectiz.com/blog/owasp-top-ten-2024/",
+        "title": "OWASP Top Ten 2024 – The Complete Guide",
+        "info": "قائمة OWASP Top 10 2024 وأهم الثغرات الحرجة: التحكم في الوصول المعطل، إخفاقات التشفير، الحقن، SSRF، مع تفاصيل المخاطر والحلول"
+      },
+      "https://www.linkedin.com/pulse/how-stay-ahead-99-bug-bounty-hunters-vijay-gupta--9kooc": {
+        "id": 43,
+        "publisher": "LinkedIn",
+        "url": "https://www.linkedin.com/pulse/how-stay-ahead-99-bug-bounty-hunters-vijay-gupta--9kooc",
+        "title": "How to Stay Ahead of 99% of Bug Bounty Hunters",
+        "info": "13 استراتيجية متقدمة للبقاء متفوقاً على 99% من صائدي الثغرات: التخصص، الاستكشاف المتقدم، البرامج الخاصة، والتعلم المستمر"
+      }
+    },
+    "تحليل أدوات فحص الثغرات الأمنية": {
+      "https://www.zaproxy.org/": {
+        "id": 44,
+        "publisher": "OWASP ZAP Team",
+        "url": "https://www.zaproxy.org/",
+        "title": "OWASP ZAP - Zed Attack Proxy Official Website",
+        "info": "معلومات شاملة عن OWASP ZAP كأداة مجانية ومفتوحة المصدر لفحص تطبيقات الويب، مع ميزات الفحص النشط والسلبي والأتمتة"
+      },
+      "https://portswigger.net/burp": {
+        "id": 45,
+        "publisher": "PortSwigger Web Security",
+        "url": "https://portswigger.net/burp",
+        "title": "Burp Suite Official Website",
+        "info": "معلومات حول Burp Suite كأداة اختبار أمان تطبيقات الويب الأكثر استخداماً، مع إصدارات مجتمعية وتجارية"
+      },
+      "https://github.com/projectdiscovery/nuclei": {
+        "id": 46,
+        "publisher": "ProjectDiscovery",
+        "url": "https://github.com/projectdiscovery/nuclei",
+        "title": "Nuclei - Fast and Customizable Vulnerability Scanner",
+        "info": "تفاصيل شاملة عن Nuclei كماسح ضوئي سريع وقابل للتخصيص مع قوالب YAML، ودعم للبروتوكولات المتعددة والأتمتة"
+      },
+      "https://nmap.org/": {
+        "id": 47,
+        "publisher": "The Nmap Project",
+        "url": "https://nmap.org/",
+        "title": "Nmap - Network Mapper Official Website",
+        "info": "معلومات مفصلة عن Nmap كأداة مجانية ومفتوحة المصدر لاكتشاف الشبكات وتدقيق الأمن مع دعم لأنظمة تشغيل متعددة"
+      },
+      "https://github.com/robertdavidgraham/masscan": {
+        "id": 48,
+        "publisher": "Robert David Graham",
+        "url": "https://github.com/robertdavidgraham/masscan",
+        "title": "Masscan - Mass IP port scanner",
+        "info": "تفاصيل عن Masscan كفاحص منافذ TCP سريع يمكنه فحص الإنترنت بالكامل في أقل من 5 دقائق بسرعة 10 مليون حزمة/ثانية"
+      },
+      "https://github.com/laramies/theHarvester": {
+        "id": 49,
+        "publisher": "Christian Martorella",
+        "url": "https://github.com/laramies/theHarvester",
+        "title": "theHarvester - OSINT Tool for Gathering Information",
+        "info": "معلومات شاملة عن theHarvester كأداة OSINT لجمع الأسماء وبيانات البريد الإلكتروني وعناوين IP والنطاقات الفرعية من مصادر عامة متعددة"
+      },
+      "https://github.com/aboul3la/Sublist3r": {
+        "id": 50,
+        "publisher": "Ahmed Aboul-Ela",
+        "url": "https://github.com/aboul3la/Sublist3r",
+        "title": "Sublist3r - Fast subdomains enumeration tool",
+        "info": "تفاصيل عن Sublist3r كأداة سريعة لتعداد النطاقات الفرعية مصممة لمختبري الاختراق مع دعم متعدد الخيوط"
+      },
+      "https://owasp.org/www-project-amass/": {
+        "id": 51,
+        "publisher": "OWASP Foundation",
+        "url": "https://owasp.org/www-project-amass/",
+        "title": "OWASP Amass Project - Attack Surface Mapping",
+        "info": "معلومات عن مشروع OWASP Amass كإطار عمل لرسم خرائط أسطح الهجوم واكتشاف الأصول الخارجية باستخدام تقنيات OSINT"
+      },
+      "https://sqlmap.org/": {
+        "id": 52,
+        "publisher": "SQLmap Development Team",
+        "url": "https://sqlmap.org/",
+        "title": "SQLmap - Automatic SQL injection and database takeover tool",
+        "info": "تفاصيل شاملة عن SQLmap كأداة مفتوحة المصدر لأتمتة اكتشاف واستغلال ثغرات حقن SQL مع دعم لقواعد بيانات متعددة وتقنيات حقن مختلفة"
+      },
+      "https://github.com/s0md3v/XSStrike": {
+        "id": 53,
+        "publisher": "Somdev Sangwan",
+        "url": "https://github.com/s0md3v/XSStrike",
+        "title": "XSStrike - Advanced XSS Detection Suite",
+        "info": "معلومات عن XSStrike كماسح XSS متقدم مع إمكانيات كشف DOM وثغرات XSS المنعكسة"
+      },
+      "https://www.geeksforgeeks.org/blogs/top-10-python-libraries-for-cybersecurity/": {
+        "id": 54,
+        "publisher": "GeeksforGeeks",
+        "url": "https://www.geeksforgeeks.org/blogs/top-10-python-libraries-for-cybersecurity/",
+        "title": "Top 10 Python Libraries For Cybersecurity",
+        "info": "دليل شامل لأهم مكتبات Python في الأمن السيبراني بما في ذلك Requests وScapy مع حالات الاستخدام والأمثلة العملية"
+      },
+      "https://www.imperva.com/learn/application-security/vulnerability-assessment/": {
+        "id": 55,
+        "publisher": "Imperva Inc.",
+        "url": "https://www.imperva.com/learn/application-security/vulnerability-assessment/",
+        "title": "Vulnerability Assessment Guide - Best Practices",
+        "info": "دليل شامل لتقييم الثغرات الأمنية يتضمن أفضل الممارسات والعملية المكونة من أربع خطوات والأدوات المستخدمة"
+      },
+      "https://www.aikido.dev/blog/balancing-security-when-to-leverage-open-source-tools-vs-commercial-solutions": {
+        "id": 56,
+        "publisher": "Aikido Security",
+        "url": "https://www.aikido.dev/blog/balancing-security-when-to-leverage-open-source-tools-vs-commercial-solutions",
+        "title": "Open Source vs Commercial Security Tools Comparison",
+        "info": "تحليل مقارن بين أدوات الأمان مفتوحة المصدر والتجارية مع مزايا وعيوب كل منها ونموذج الأدوات الهجينة"
+      }
+    },
+    "استراتيجيات الأتمتة والذكاء الاصطناعي في الأمن السيبراني": {
+      "https://journalofbigdata.springeropen.com/articles/10.1186/s40537-024-00957-y": {
+        "id": 57,
+        "publisher": "مجلة البيانات الكبيرة - Springer",
+        "url": "https://journalofbigdata.springeropen.com/articles/10.1186/s40537-024-00957-y",
+        "title": "تطوير الأمن السيبراني: مراجعة شاملة لتقنيات الكشف المدفوعة بالذكاء الاصطناعي",
+        "info": "دراسة أكاديمية شاملة تغطي 68 دراسة عالية الجودة حول تطبيقات الذكاء الاصطناعي في الأمن السيبراني، تقنيات ML وDL للكشف عن البرمجيات الخبيثة والاختراقات الشبكية والتصيد الاحتيالي، مع نتائج دقة تصل إلى 99%"
+      },
+      "https://www.paloaltonetworks.com/cyberpedia/what-is-soar": {
+        "id": 58,
+        "publisher": "Palo Alto Networks",
+        "url": "https://www.paloaltonetworks.com/cyberpedia/what-is-soar",
+        "title": "ما هو SOAR؟ - تنسيق وأتمتة واستجابة الأمن",
+        "info": "دليل تقني شامل حول تقنيات SOAR، تعريفات التنسيق والأتمتة الأمنية، حالات الاستخدام العملية، معايير اختيار المنصات، والمقارنات مع تقنيات SIEM وXDR"
+      },
+      "https://www.ibm.com/think/topics/3-proven-use-cases-for-ai-preventative-cybersecurity": {
+        "id": 59,
+        "publisher": "IBM",
+        "url": "https://www.ibm.com/think/topics/3-proven-use-cases-for-ai-preventative-cybersecurity",
+        "title": "ثلاث حالات استخدام مثبتة للذكاء الاصطناعي في الأمن السيبراني الوقائي",
+        "info": "حالات استخدام عملية من IBM تشمل إدارة سطح الهجوم، الفرق الحمراء، وإدارة الوضع الأمني، مع إحصائيات توضح توفير 2.2 مليون دولار عبر الأتمتة المدفوعة بالذكاء الاصطناعي وتقليل وقت التخفيف بـ100 يوم"
+      },
+      "https://www.mmgllc.us/top-5-successful-initiatives-in-ai-and-cybersecurity/": {
+        "id": 60,
+        "publisher": "MMG LLC",
+        "url": "https://www.mmgllc.us/top-5-successful-initiatives-in-ai-and-cybersecurity/",
+        "title": "أفضل 5 مبادرات ناجحة في الذكاء الاصطناعي والأمن السيبراني",
+        "info": "دراسات حالة مفصلة لمشاريع IBM Watson، Darktrace، Google Chronicle، Cylance، وMicrosoft Azure Sentinel، مع تحليل التطبيقات والتأثير والإنجازات المقيسة لكل مبادرة"
+      },
+      "https://www.stationx.net/examples-of-ai-in-cyber-security/": {
+        "id": 61,
+        "publisher": "StationX",
+        "url": "https://www.stationx.net/examples-of-ai-in-cyber-security/",
+        "title": "10 أمثلة للذكاء الاصطناعي في الأمن السيبراني - أحدث الأبحاث",
+        "info": "10 تطبيقات عملية للذكاء الاصطناعي تشمل كشف التهديدات، الاستجابة التلقائية للحوادث، فحص الثغرات، صيد التهديدات، تحليل البرمجيات الخبيثة، اختبار الاختراق، تقييم المخاطر، منع فقدان البيانات، إدارة الهوية، والتدريب الأمني"
+      },
+      "https://www.exabeam.com/explainers/siem-tools/7-open-source-siems/": {
+        "id": 62,
+        "publisher": "Exabeam",
+        "url": "https://www.exabeam.com/explainers/siem-tools/7-open-source-siems/",
+        "title": "أفضل 5 أدوات SIEM مفتوحة المصدر مجانية - محدثة 2025",
+        "info": "مراجعة شاملة لأدوات SIEM مفتوحة المصدر تشمل ELK Stack، Apache Metron، SIEMonster، Prelude، وOSSIM، مع تفاصيل الميزات والقيود ودمج تقنيات الذكاء الاصطناعي مثل UEBA وSOAR"
+      },
+      "https://arxiv.org/pdf/2311.08807.pdf": {
+        "id": 63,
+        "publisher": "arXiv (Cornell University)",
+        "url": "https://arxiv.org/pdf/2311.08807.pdf",
+        "title": "تقنيات معالجة اللغات الطبيعية المستندة إلى الاستخبارات الأمنية السيبرانية",
+        "info": "ورقة بحثية شاملة تغطي تطبيقات NLP في جمع وتحليل الاستخبارات الأمنية، تقنيات استخراج الكيانات والعلاقات، تحليل المواضيع، التصنيف النصي، والتحديات التقنية والأخلاقية"
+      }
+    },
+    "الإطار القانوني والأخلاقي لـ Bug Bounty": {
+      "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html": {
+        "id": 64,
+        "publisher": "OWASP (Open Web Application Security Project)",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html",
+        "title": "مرجع OWASP لإرشادات الكشف عن الثغرات الأمنية",
+        "info": "مبادئ شاملة للكشف عن الثغرات، مسؤوليات الباحثين والمنظمات، أنواع الكشف (خاص، كامل، منسق)، الاعتبارات الأخلاقية والقانونية"
+      },
+      "https://docs.hackerone.com/en/articles/8494502-safe-harbor-faq": {
+        "id": 65,
+        "publisher": "HackerOne",
+        "url": "https://docs.hackerone.com/en/articles/8494502-safe-harbor-faq",
+        "title": "الأسئلة الشائعة حول أحكام الملاذ الآمن",
+        "info": "تعريف شامل لأحكام الملاذ الآمن، أبحاث الأمن بحسن نية، العناصر الأساسية لبيانات الملاذ الآمن المتقدمة، الحماية القانونية للباحثين الأمنيين"
+      },
+      "https://csrc.nist.gov/News/2023/sp800-216-fed-vulnerability-disclosure-guidelines": {
+        "id": 66,
+        "publisher": "NIST (المعهد الوطني للمعايير والتكنولوجيا)",
+        "url": "https://csrc.nist.gov/News/2023/sp800-216-fed-vulnerability-disclosure-guidelines",
+        "title": "NIST SP 800-216: توصيات إرشادات الكشف عن الثغرات الفيدرالية",
+        "info": "إطار عمل مرن وموحد لإنشاء سياسات وتطبيق إجراءات الكشف عن الثغرات للحكومة الفيدرالية، تتماشى مع معايير ISO/IEC 29147 و 30111"
+      },
+      "https://www.supremecourt.gov/opinions/20pdf/19-783_k53l.pdf": {
+        "id": 67,
+        "publisher": "المحكمة العليا الأمريكية",
+        "url": "https://www.supremecourt.gov/opinions/20pdf/19-783_k53l.pdf",
+        "title": "قرار قضية Van Buren vs. United States (2021)",
+        "info": "تفسير ضيق لـ 'exceeds authorized access' في CFAA، تأثير إيجابي على الباحثين الأمنيين، التركيز على الحدود التقنية وليس الأغراض"
+      },
+      "https://www.centerforcybersecuritypolicy.org/insights-and-research/vulnerability-management-under-the-cyber-resilience-act": {
+        "id": 68,
+        "publisher": "مركز سياسة الأمن السيبراني",
+        "url": "https://www.centerforcybersecuritypolicy.org/insights-and-research/vulnerability-management-under-the-cyber-resilience-act",
+        "title": "إدارة الثغرات بموجب قانون المرونة السيبرانية",
+        "info": "متطلبات شاملة لقانون المرونة السيبرانية للاتحاد الأوروبي 2024، متطلبات إدارة الثغرات، الحماية القانونية للباحثين، تشجيع برامج Bug Bounty"
+      },
+      "https://gogetsecure.com/bug-bounty-legal-issues/": {
+        "id": 69,
+        "publisher": "GoGetSecure",
+        "url": "https://gogetsecure.com/bug-bounty-legal-issues/",
+        "title": "القضايا القانونية في Bug Bounty: دليل للشركات والمخترقين",
+        "info": "القضايا القانونية لبرامج Bug Bounty، المخاطر القانونية للشركات والمخترقين، استراتيجيات تخفيف المخاطر، الاتجاهات المستقبلية"
+      },
+      "https://ctsp.berkeley.edu/bug-bounty-programs-as-a-corporate-governance-best-practice-mechanism/": {
+        "id": 70,
+        "publisher": "جامعة بركلي كاليفورنيا",
+        "url": "https://ctsp.berkeley.edu/bug-bounty-programs-as-a-corporate-governance-best-practice-mechanism/",
+        "title": "Bug Bounty كآلية ممارسة فضلى في حوكمة الشركات",
+        "info": "برامج Bug Bounty كآلية أفضل ممارسةت في حوكمة الشركات، نظام مراقبة مستقل وفعال، تقليل مخاطر التقاضي والمسؤولية"
+      },
+      "https://github.com/disclose/research-threats": {
+        "id": 71,
+        "publisher": "Disclose.io Community",
+        "url": "https://github.com/disclose/research-threats",
+        "title": "مجموعة من التهديدات القانونية ضد باحثي الأمن",
+        "info": "مجموعة واسعة من التهديدات القانونية ضد باحثي الأمن (2000-2024)، خطابات التوقف والكف، الاعتقالات، الدعاوى القضائية، أمثلة على ردود الفعل المبالغ فيها"
+      },
+      "https://egs.eccouncil.org/legal-vs-ethical-aspects-of-information-assurance-and-security/": {
+        "id": 72,
+        "publisher": "مجلس EC-Council",
+        "url": "https://egs.eccouncil.org/legal-vs-ethical-aspects-of-information-assurance-and-security/",
+        "title": "الجوانب القانونية مقابل الأخلاقية في تأمين المعلومات",
+        "info": "هذا القسم 18 من قانون الولايات المتحدة الذي يحدد مجموعة متنوعة من أنشطة الاحتيال والأنشطة ذات الصلة غير القانونية، قضايا واقعية مثل قضية ويكيليكس وعدد من عحالات المبلغين عن المخالفات"
+      }
+    }
+  }
+}
