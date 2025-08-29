@@ -1,14 +1,18 @@
+import os
+import re
+
 class ReportGenerator:
     """
-    Generates a professional vulnerability report.
+    Generates a professional vulnerability report and saves it to a file.
     """
     def __init__(self, target, vulnerability):
         self.target = target
         self.vulnerability = vulnerability
+        self.report_dir = 'reports'
 
-    def generate(self):
-        """Generates a formatted report string."""
-        report = f"""
+    def _generate_report_content(self):
+        """Generates the formatted report string."""
+        return f"""
 ===================================================
  VULNERABILITY REPORT
 ===================================================
@@ -34,4 +38,25 @@ RECOMMENDED MITIGATION:
 It is recommended that a security engineer manually verify this finding. If confirmed, apply appropriate sanitization and validation to all user-supplied input, and review access control policies.
 ===================================================
 """
-        return report
+
+    def save_to_file(self):
+        """Saves the generated report to a unique file."""
+        # Ensure the reports directory exists
+        if not os.path.exists(self.report_dir):
+            os.makedirs(self.report_dir)
+
+        # Sanitize vulnerability type for the filename
+        sanitized_vuln_type = re.sub(r'[^a-zA-Z0-9]', '', self.vulnerability['type'])
+
+        # Create a unique filename
+        filename = f"{self.target['name']}_{sanitized_vuln_type}_{self.vulnerability['severity']}.txt"
+        filepath = os.path.join(self.report_dir, filename)
+
+        # Generate the report content
+        report_content = self._generate_report_content()
+
+        # Write the report to the file
+        with open(filepath, 'w') as f:
+            f.write(report_content)
+
+        print(f"  -> Report saved to: {filepath}")
