@@ -68,6 +68,9 @@ class DataPersistence:
                 "program_url": p.get("program_url"),
                 "status": get_status(p.get("submission_state")),
                 "offers_bounties": p.get("offers_bounties", False),
+                "min_payout": p.get("min_payout"),
+                "max_payout": p.get("max_payout"),
+                "currency": p.get("currency", "USD"),
                 "last_seen_at": datetime.now(timezone.utc),
             }
             for p in programs_list if p.get("external_id") and p.get("program_url")
@@ -86,6 +89,9 @@ class DataPersistence:
                 "program_url": stmt.excluded.program_url,
                 "status": stmt.excluded.status,
                 "offers_bounties": stmt.excluded.offers_bounties,
+                "min_payout": stmt.excluded.min_payout,
+                "max_payout": stmt.excluded.max_payout,
+                "currency": stmt.excluded.currency,
                 "last_seen_at": stmt.excluded.last_seen_at,
             }
         )

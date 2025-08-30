@@ -1,10 +1,12 @@
 import asyncio
 import httpx
+import time
 from sqlmodel import Session
 import structlog
 
 from .base_harvester import BaseHarvester
 from .hackerone_harvester import HackeroneHarvester
+from .bugcrowd_harvester import BugcrowdHarvester
 from .persistence import DataPersistence
 
 log = structlog.get_logger()
@@ -27,6 +29,12 @@ class HarvesterAggregator:
         except ValueError as e:
             log.error("Failed to register HackeroneHarvester", error=str(e))
 
+        try:
+            self.add_harvester(BugcrowdHarvester())
+            log.info("Registered Bugcrowd harvester.")
+        except Exception as e:
+            log.error("Failed to register BugcrowdHarvester", error=str(e))
+
     def add_harvester(self, harvester: BaseHarvester):
         """Adds a harvester to the aggregator."""
         self._harvesters.append(harvester)
@@ -44,10 +52,19 @@ class HarvesterAggregator:
 
             last_run_meta = self.persistence.get_last_run_metadata(platform_name)
 
+            start_time = time.perf_counter()
             result = await harvester.fetch_programs(client, last_run_meta)
+            duration = time.perf_counter() - start_time
 
             programs = result.get("programs")
             new_meta = result.get("metadata")
+
+            log.info(
+                "Harvester fetch completed.",
+                platform=platform_name,
+                duration=round(duration, 2),
+                programs_found=len(programs) if programs else 0,
+            )
 
             if programs:
                 self.persistence.upsert_programs_batch(programs, platform.id)
