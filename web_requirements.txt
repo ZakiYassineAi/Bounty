@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart # For form data, which is needed for the token endpoint

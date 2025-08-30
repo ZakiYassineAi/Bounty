@@ -15,16 +15,44 @@ from .config import settings
 app = typer.Typer(help="A command-line tool to manage bug bounty hunting activities.")
 target_app = typer.Typer(name="target", help="Manage targets.")
 evidence_app = typer.Typer(name="evidence", help="Manage evidence.")
+user_app = typer.Typer(name="user", help="Manage users.")
 app.add_typer(target_app)
 app.add_typer(evidence_app)
+app.add_typer(user_app)
 
 # Create a Rich console for beautiful output
 console = Console()
 
 # Instantiate managers
+from . import user_manager
 tm = target_manager.TargetManager()
 em = evidence_manager.EvidenceManager()
+um = user_manager.UserManager()
 runner = AsyncToolRunner()
+
+# --- User Commands ---
+
+@user_app.command("create")
+def create_user(
+    username: str = typer.Option(..., "--username", "-u", help="The username for the new user."),
+    password: str = typer.Option(..., "--password", "-p", prompt=True, hide_input=True, help="The password for the new user."),
+    role: str = typer.Option("viewer", "--role", "-r", help="The role for the new user (admin, researcher, viewer)."),
+):
+    """Creates a new user in the database."""
+    log = get_logger("create_user")
+    log.info("Attempting to create a new user", username=username, role=role)
+
+    # Validate role
+    if role not in ["admin", "researcher", "viewer"]:
+        console.print(f"[red]✖[/red] Invalid role '{role}'. Must be one of: admin, researcher, viewer.")
+        raise typer.Exit(code=1)
+
+    user = um.create_user(username, password, role)
+    if user:
+        console.print(f"[green]✔[/green] Successfully created user: {username} with role {role}")
+    else:
+        console.print(f"[red]✖[/red] Failed to create user. Username may already exist.")
+        raise typer.Exit(code=1)
 
 @app.callback()
 def main_callback():

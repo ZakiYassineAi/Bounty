@@ -24,3 +24,10 @@ class Evidence(SQLModel, table=True):
 
     # The relationship to the parent Target object
     target: Optional[Target] = Relationship(back_populates="evidence")
+
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True, min_length=3, max_length=50)
+    hashed_password: str
+    role: str # E.g., "admin", "researcher", "viewer"
