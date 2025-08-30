@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from .models import Evidence, Target
+from .notification_manager import NotificationManager
+from .config import settings
 
 class EvidenceManager:
     """Manages CRUD operations for evidence in the database."""
@@ -21,6 +23,14 @@ class EvidenceManager:
         db.add(new_evidence)
         db.commit()
         db.refresh(new_evidence)
+
+        if severity in ["High", "Critical"]:
+            notification_manager = NotificationManager()
+            notification_manager.send_high_severity_notification(
+                target_name=target.name,
+                finding_summary=new_evidence.finding_summary
+            )
+
         return new_evidence
 
     def get_evidence_by_id(self, db: Session, evidence_id: int) -> Optional[Evidence]:
