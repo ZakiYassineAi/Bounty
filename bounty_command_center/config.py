@@ -37,6 +37,14 @@ class CeleryConfig(BaseModel):
     broker_url: str = "redis://localhost:6379/0"
     result_backend: str = "redis://localhost:6379/0"
 
+class NotificationConfig(BaseModel):
+    slack_webhook_url: str = ""
+    smtp_server: str = "localhost"
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_to: str = "your_email@example.com"
+
 class Settings(BaseModel):
     tools: ToolsConfig = ToolsConfig()
     api_keys: ApiKeysConfig = ApiKeysConfig()
@@ -44,6 +52,7 @@ class Settings(BaseModel):
     async_runner: AsyncRunnerConfig = AsyncRunnerConfig()
     auth: AuthConfig = AuthConfig()
     celery: CeleryConfig = CeleryConfig()
+    notifications: NotificationConfig = NotificationConfig()
 
 # --- Config Loading Logic ---
 
