@@ -76,3 +76,20 @@ def rescan_all_targets():
             scan_target.delay(target.id)
 
         log.info("Queued daily rescans for %d targets.", len(targets))
+
+
+from .harvester.aggregator import HarvesterAggregator
+
+@celery_app.task(name="bounty_command_center.tasks.harvest_bounty_programs")
+def harvest_bounty_programs():
+    """
+    Celery task to run all bug bounty program harvesters.
+    """
+    log.info("Starting bug bounty program harvesting task...")
+    with next(get_session()) as session:
+        try:
+            aggregator = HarvesterAggregator()
+            asyncio.run(aggregator.run_all(db_session=session))
+            log.info("Bug bounty program harvesting task finished.")
+        except Exception as e:
+            log.error("An error occurred during the harvesting task.", error=str(e))

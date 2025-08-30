@@ -8,3 +8,6 @@ rich
 celery
 redis
 psutil
+aiohttp
+beautifulsoup4
+lxml

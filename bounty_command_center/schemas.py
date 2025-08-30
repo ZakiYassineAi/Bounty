@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 # --- Target Schemas ---
 
@@ -50,3 +51,46 @@ class UserCreate(UserBase):
 
 class UserRead(UserBase):
     id: int
+
+# --- Program Schemas ---
+
+class RewardRead(BaseModel):
+    id: int
+    severity: str
+    min_payout: Optional[int] = None
+    max_payout: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+class PlatformRead(BaseModel):
+    id: int
+    name: str
+    url: str
+
+    class Config:
+        orm_mode = True
+
+class ProgramRead(BaseModel):
+    id: int
+    name: str
+    program_url: str
+    is_active: bool
+    last_harvested_at: datetime
+    scope: Dict[str, Any]
+    platform: PlatformRead
+    rewards: List[RewardRead]
+
+    class Config:
+        orm_mode = True
+
+class ProgramReadBasic(BaseModel):
+    """A simpler Program model for lists, without full scope/rewards."""
+    id: int
+    name: str
+    program_url: str
+    is_active: bool
+    platform: PlatformRead
+
+    class Config:
+        orm_mode = True

@@ -1,6 +1,43 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from sqlmodel import Field, SQLModel, Relationship, JSON, Column
+
+# --- New Models for Bounty Program Harvesting ---
+
+class Program(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    program_url: str = Field(unique=True)
+    is_active: bool = Field(default=True)
+    last_harvested_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    # Store scope as a structured JSON object
+    scope: Dict[str, Any] = Field(sa_column=Column(JSON), default={})
+
+    platform_id: int = Field(foreign_key="platform.id")
+    platform: "Platform" = Relationship(back_populates="programs")
+
+    rewards: List["Reward"] = Relationship(back_populates="program")
+
+class Platform(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    url: str
+
+    programs: List["Program"] = Relationship(back_populates="platform")
+
+class Reward(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    severity: str # e.g., "Critical", "High", "Medium", "Low", "Informational"
+    min_payout: Optional[int] = None
+    max_payout: Optional[int] = None
+
+    program_id: int = Field(foreign_key="program.id")
+    program: "Program" = Relationship(back_populates="rewards")
+
+
+# --- Existing Models ---
 
 class Target(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

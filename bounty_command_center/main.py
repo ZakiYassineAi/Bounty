@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from .database import create_db_and_tables
 from .logging_setup import setup_logging
-from .routers import auth, targets, evidence, reports
+from .routers import auth, targets, evidence, reports, programs
 
 
 # --- Lifespan Management ---
@@ -30,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(targets.router)
 app.include_router(evidence.router)
 app.include_router(reports.router)
+app.include_router(programs.router)
 
 # A simple root endpoint to confirm the API is running
 @app.get("/")
