@@ -9,6 +9,8 @@ from sqlmodel import select
 log = get_logger(__name__)
 
 
+import asyncio
+
 @celery_app.task(name="bounty_command_center.tasks.scan_target")
 def scan_target(target_id: int):
     """
@@ -22,17 +24,13 @@ def scan_target(target_id: int):
             return
 
         tool_integrator = ToolIntegrator(target)
-        findings = tool_integrator.run_all_scans()
+        findings = asyncio.run(tool_integrator.run_all_scans())
 
         if not findings:
             log.info("No findings for target %s", target.name)
             return
 
-        for finding_summary in findings:
-            evidence = Evidence(
-                finding_summary=finding_summary,
-                target_id=target.id,
-            )
+        for evidence in findings:
             session.add(evidence)
 
         session.commit()
