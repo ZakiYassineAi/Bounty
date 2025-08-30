@@ -1,3 +1,4 @@
+import requests
 import random
 
 # These classes simulate finding specific types of vulnerabilities.
@@ -22,11 +23,31 @@ class CSRFSimulator:
             return "[simulated-csrf][medium] CSRF token not validated on account_update.php"
         return None
 
-class InfoLeakSimulator:
+class GitLeakChecker:
+    """Checks for an exposed .git/config file."""
     def scan(self, target):
-        """Simulates scanning for Information Disclosure."""
-        if random.random() < 0.15: # 15% chance
-            return "[simulated-infoleak][low] .git/config file exposed."
+        url = target.get('url', '')
+        if not url:
+            return None
+
+        # Ensure the URL has a scheme
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'http://' + url
+
+        git_config_url = f"{url.rstrip('/')}/.git/config"
+
+        try:
+            # Set a timeout to avoid hanging indefinitely
+            response = requests.get(git_config_url, timeout=5)
+            # Check if the file is found and seems to be a git config
+            if response.status_code == 200 and '[core]' in response.text:
+                return f"[git-leak][high] Exposed .git/config file found at {git_config_url}"
+        except requests.exceptions.RequestException as e:
+            # This will catch connection errors, timeouts, etc.
+            # In a real scenario, you might want to log this error differently.
+            print(f"  ->  [GitLeakChecker] An error occurred while scanning {git_config_url}: {e}")
+            return None
+
         return None
 
 class AuthBypassSimulator:
@@ -54,7 +75,7 @@ class ToolIntegrator:
             'XSS': XSSSimulator(),
             'SQLi': SQLiSimulator(),
             'CSRF': CSRFSimulator(),
-            'InfoLeak': InfoLeakSimulator(),
+            'GitLeak': GitLeakChecker(),
             'AuthBypass': AuthBypassSimulator()
         }
 
@@ -66,7 +87,7 @@ class ToolIntegrator:
         all_findings = []
 
         for name, simulator in self.simulators.items():
-            print(f"  -> Running {name} simulation...")
+            print(f"  -> Running {name} scan...")
             finding = simulator.scan(self.target)
             if finding:
                 all_findings.append(finding)

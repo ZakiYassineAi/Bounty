@@ -1,109 +1,83 @@
-import json
-import os
-import uuid
 from datetime import datetime
+from sqlmodel import Session, select
+from .database import engine
+from .models import Evidence, Target
 
 class EvidenceManager:
-    """Manages the lifecycle of evidence collected from scans."""
-    def __init__(self, db_file='evidence.json'):
-        self.db_file = db_file
-        self.evidence_log = self._load_evidence()
+    """Manages the lifecycle of evidence using a database."""
 
-    def _load_evidence(self):
-        """Loads evidence from the JSON database, creating it if it doesn't exist."""
-        if not os.path.exists(self.db_file):
-            return []
-        if os.path.getsize(self.db_file) == 0:
-            return []
-        with open(self.db_file, 'r') as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return []
-
-    def _save_evidence(self):
-        """Saves the current evidence log to the JSON database."""
-        with open(self.db_file, 'w') as f:
-            json.dump(self.evidence_log, f, indent=4)
-
-    def create_evidence_record(self, target, findings):
+    def create_evidence_record(self, target: Target, findings: list[str]):
         """
-        Creates a new evidence record for a target based on a list of findings.
+        Creates new evidence records for a target based on a list of findings.
         """
         if not findings:
             return
 
-        timestamp = datetime.now().isoformat()
-        print(f"  -> Logging {len(findings)} new piece(s) of evidence for {target['name']}.")
+        print(f"  -> Logging {len(findings)} new piece(s) of evidence for {target.name}.")
 
-        for finding in findings:
-            new_record = {
-                'id': str(uuid.uuid4()), # Add a unique ID for each record
-                'timestamp': timestamp,
-                'target_name': target['name'],
-                'target_url': target['url'],
-                'finding_summary': finding,
-                'status': 'new' # Default status
-            }
-            self.evidence_log.append(new_record)
+        with Session(engine) as session:
+            for finding in findings:
+                new_evidence = Evidence(
+                    finding_summary=finding,
+                    target_id=target.id
+                )
+                session.add(new_evidence)
+            session.commit()
 
-        self._save_evidence()
-
-    def update_evidence_status(self, record_id, new_status):
+    def update_evidence_status(self, record_id: int, new_status: str) -> bool:
         """
-        Updates the status of a specific evidence record.
-        :param record_id: The unique ID of the record to update.
-        :param new_status: The new status (e.g., 'reviewed', 'false_positive').
+        Updates the status of a specific evidence record by its integer ID.
         """
-        record_found = False
-        for record in self.evidence_log:
-            if record.get('id') == record_id:
-                record['status'] = new_status
-                record_found = True
-                break
+        with Session(engine) as session:
+            evidence_record = session.get(Evidence, record_id)
 
-        if record_found:
-            self._save_evidence()
-            print(f"Successfully updated status for record {record_id} to '{new_status}'.")
-            return True
-        else:
-            print(f"Error: Record with ID '{record_id}' not found.")
-            return False
+            if evidence_record:
+                evidence_record.status = new_status
+                session.add(evidence_record)
+                session.commit()
+                print(f"Successfully updated status for record {record_id} to '{new_status}'.")
+                return True
+            else:
+                print(f"Error: Record with ID '{record_id}' not found.")
+                return False
 
-    def list_evidence(self, status_filter=None, limit=10):
+    def list_evidence(self, status_filter: str | None = None, limit: int = 10):
         """
         Displays collected evidence, with optional filtering by status.
-        :param status_filter: (Optional) A string to filter evidence by status.
-        :param limit: The maximum number of records to display.
         """
         print(f"\n--- Collected Evidence Log (Filter: {status_filter or 'None'}) ---")
 
-        if not self.evidence_log:
-            print("No evidence has been collected yet.")
-            return
+        with Session(engine) as session:
+            query = select(Evidence).order_by(Evidence.timestamp.desc())
 
-        # Sort evidence by timestamp, most recent first
-        sorted_evidence = sorted(self.evidence_log, key=lambda x: x['timestamp'], reverse=True)
+            if status_filter:
+                query = query.where(Evidence.status == status_filter)
 
-        # Filter by status if a filter is provided
-        if status_filter:
-            display_list = [r for r in sorted_evidence if r['status'] == status_filter]
-        else:
-            display_list = sorted_evidence
+            evidence_list = session.exec(query.limit(limit)).all()
 
-        if not display_list:
-            print(f"No evidence found with status '{status_filter}'.")
-            return
+            if not evidence_list:
+                if status_filter:
+                    print(f"No evidence found with status '{status_filter}'.")
+                else:
+                    print("No evidence has been collected yet.")
+                return
 
-        for i, record in enumerate(display_list[:limit]):
-            print(f"ID: {record.get('id')}")
-            print(f"  Timestamp: {record['timestamp']}")
-            print(f"  Target: {record['target_name']}")
-            print(f"  Finding: {record['finding_summary']}")
-            print(f"  Status: {record['status']}")
-            print("-" * 25)
+            for record in evidence_list:
+                # The target is eagerly loaded because of the relationship,
+                # but it's good practice to handle the case where it might be None.
+                target_name = record.target.name if record.target else "N/A"
+                print(f"ID: {record.id}")
+                print(f"  Timestamp: {record.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"  Target: {target_name}")
+                print(f"  Finding: {record.finding_summary}")
+                print(f"  Status: {record.status}")
+                print("-" * 25)
 
-        if len(display_list) > limit:
-            print(f"... and {len(display_list) - limit} more records.")
+            # To show the "more records" count, we need a separate count query
+            count_query = select(Evidence)
+            if status_filter:
+                count_query = count_query.where(Evidence.status == status_filter)
+            total_records = len(session.exec(count_query).all())
 
-        return display_list # Return the list for the CLI to use
+            if total_records > limit:
+                print(f"... and {total_records - limit} more records.")
