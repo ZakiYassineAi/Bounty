@@ -1,81 +1,68 @@
-import json
-import os
+from sqlmodel import Session, select
+from .database import engine
+from .models import Target
 
 class TargetManager:
-    """Manages the lifecycle of bug bounty targets."""
-    def __init__(self, db_file='targets.json'):
-        self.db_file = db_file
-        self.targets = self._load_targets()
+    """Manages the lifecycle of bug bounty targets using a database."""
 
-    def _load_targets(self):
-        """Loads targets from the JSON database, creating it if it doesn't exist."""
-        if not os.path.exists(self.db_file):
-            return []
-        # Check for empty file
-        if os.path.getsize(self.db_file) == 0:
-            return []
-        with open(self.db_file, 'r') as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return [] # Return empty list if file is corrupted
-
-    def _save_targets(self):
-        """Saves the current list of targets to the JSON database."""
-        with open(self.db_file, 'w') as f:
-            json.dump(self.targets, f, indent=4)
-
-    def add_target(self, name, url, scope):
+    def add_target(self, name: str, url: str, scope: list[str]) -> bool:
         """
         Adds a new target to the database.
         Returns True on success, False on failure (e.g., duplicate).
         """
-        if any(t['name'].lower() == name.lower() for t in self.targets):
-            print(f"Error: A target with the name '{name}' already exists.")
-            return False
+        with Session(engine) as session:
+            # Check if a target with the same name already exists
+            existing = session.exec(select(Target).where(Target.name == name)).first()
+            if existing:
+                print(f"Error: A target with the name '{name}' already exists.")
+                return False
 
-        new_target = {
-            'name': name,
-            'url': url,
-            'scope': scope
-        }
-        self.targets.append(new_target)
-        self._save_targets()
-        print(f"Successfully added target: {name}")
-        return True
+            new_target = Target(name=name, url=url, scope=scope)
+            session.add(new_target)
+            session.commit()
+            print(f"Successfully added target: {name}")
+            return True
 
-    def remove_target(self, name):
+    def remove_target(self, name: str) -> bool:
         """
         Removes a target by name from the database.
         Returns True on success, False if not found.
         """
-        original_count = len(self.targets)
-        self.targets = [t for t in self.targets if t['name'].lower() != name.lower()]
+        with Session(engine) as session:
+            target_to_delete = session.exec(select(Target).where(Target.name == name)).first()
 
-        if len(self.targets) < original_count:
-            self._save_targets()
-            print(f"Successfully removed target: {name}")
-            return True
-        else:
-            print(f"Error: No target found with the name '{name}'.")
-            return False
+            if target_to_delete:
+                session.delete(target_to_delete)
+                session.commit()
+                print(f"Successfully removed target: {name}")
+                return True
+            else:
+                print(f"Error: No target found with the name '{name}'.")
+                return False
 
     def list_targets(self):
-        """Displays all current targets in a formatted way."""
-        print("\n--- Current Targets ---")
-        if not self.targets:
-            print("No targets in the database.")
-            return
+        """Displays all current targets from the database."""
+        with Session(engine) as session:
+            targets = session.exec(select(Target)).all()
 
-        for i, target in enumerate(self.targets):
-            print(f"{i+1}. Name: {target['name']}")
-            print(f"   URL: {target['url']}")
-            print(f"   Scope: {', '.join(target['scope'])}")
-            print("-" * 20)
+            print("\n--- Current Targets ---")
+            if not targets:
+                print("No targets in the database.")
+                return
 
-    def get_target_by_name(self, name):
-        """Finds and returns a target by name."""
-        for target in self.targets:
-            if target['name'].lower() == name.lower():
-                return target
-        return None
+            for i, target in enumerate(targets):
+                print(f"{i+1}. Name: {target.name}")
+                print(f"   URL: {target.url}")
+                print(f"   Scope: {', '.join(target.scope)}")
+                print("-" * 20)
+
+    def get_target_by_name(self, name: str) -> Target | None:
+        """Finds and returns a target by name from the database."""
+        with Session(engine) as session:
+            target = session.exec(select(Target).where(Target.name == name)).first()
+            return target
+
+    def get_all_targets(self) -> list[Target]:
+        """Returns a list of all target objects."""
+        with Session(engine) as session:
+            return session.exec(select(Target)).all()
