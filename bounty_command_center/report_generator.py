@@ -2,17 +2,17 @@ from pathlib import Path
 from sqlmodel import Session, select
 
 from .config import settings
-from .database import engine
 from .models import Evidence
 from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-def generate_markdown_report(evidence_id: int) -> Path | None:
+def generate_markdown_report(db: Session, evidence_id: int) -> Path | None:
     """
     Generates a Markdown report for a given piece of evidence.
 
     Args:
+        db: The database session.
         evidence_id: The ID of the evidence to report.
 
     Returns:
@@ -20,14 +20,13 @@ def generate_markdown_report(evidence_id: int) -> Path | None:
     """
     log.info("Attempting to generate report for evidence", evidence_id=evidence_id)
 
-    with Session(engine) as session:
-        # Query for the evidence and eagerly load the related target
-        query = select(Evidence).where(Evidence.id == evidence_id)
-        evidence = session.exec(query).first()
+    # Query for the evidence and eagerly load the related target
+    query = select(Evidence).where(Evidence.id == evidence_id)
+    evidence = db.exec(query).first()
 
-        if not evidence:
-            log.error("Could not find evidence to generate report", evidence_id=evidence_id)
-            return None
+    if not evidence:
+        log.error("Could not find evidence to generate report", evidence_id=evidence_id)
+        return None
 
         # Ensure the target is loaded
         if not evidence.target:

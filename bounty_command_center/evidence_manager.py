@@ -1,58 +1,94 @@
-from datetime import datetime
+from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
-from sqlalchemy.orm import selectinload
-from .database import engine
 from .models import Evidence, Target
 
 class EvidenceManager:
-    """Manages the lifecycle of evidence using a database."""
+    """Manages CRUD operations for evidence in the database."""
 
-    def create_evidence_record(self, target: Target, findings: list[str]):
-        """
-        Creates new evidence records for a target based on a list of findings.
-        """
-        if not findings:
-            return
+    def create_evidence(self, db: Session, finding_summary: str, status: str, target_id: int) -> Optional[Evidence]:
+        """Creates a new evidence record and links it to a target."""
+        target = db.get(Target, target_id)
+        if not target:
+            return None
 
-        print(f"  -> Logging {len(findings)} new piece(s) of evidence for {target.name}.")
+        new_evidence = Evidence(
+            finding_summary=finding_summary,
+            status=status,
+            target_id=target_id
+        )
+        db.add(new_evidence)
+        db.commit()
+        db.refresh(new_evidence)
+        return new_evidence
 
-        with Session(engine) as session:
-            for finding in findings:
-                new_evidence = Evidence(
-                    finding_summary=finding,
-                    target_id=target.id
-                )
-                session.add(new_evidence)
-            session.commit()
+    def get_evidence_by_id(self, db: Session, evidence_id: int) -> Optional[Evidence]:
+        """Retrieves a single piece of evidence by its ID."""
+        return db.get(Evidence, evidence_id)
 
-    def update_evidence_status(self, record_id: int, new_status: str) -> bool:
-        """
-        Updates the status of a specific evidence record by its integer ID.
-        """
-        with Session(engine) as session:
-            # Use session.get for a primary key lookup, it's faster.
-            evidence_record = session.get(Evidence, record_id)
+    def get_all_evidence(
+        self,
+        db: Session,
+        status_filter: Optional[str] = None,
+        target_id_filter: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[Evidence]:
+        """Retrieves a list of evidence with pagination and optional filters."""
+        statement = select(Evidence)
+        if status_filter:
+            statement = statement.where(Evidence.status == status_filter)
+        if target_id_filter:
+            statement = statement.where(Evidence.target_id == target_id_filter)
 
-            if evidence_record:
-                evidence_record.status = new_status
-                session.add(evidence_record)
-                session.commit()
-                return True
-            else:
-                return False
+        statement = statement.offset(skip).limit(limit)
+        return db.exec(statement).all()
 
-    def get_evidence(self, status_filter: str | None = None) -> list[Evidence]:
-        """
-        Retrieves a list of evidence records, with optional filtering by status.
-        This method returns data, it does not print to console.
-        """
-        with Session(engine) as session:
-            # Use selectinload to eagerly load the related Target object
-            # This prevents DetachedInstanceError when accessing evidence.target later
-            query = select(Evidence).options(selectinload(Evidence.target)).order_by(Evidence.timestamp.desc())
+    def update_evidence(self, db: Session, evidence_id: int, update_data: Dict[str, Any]) -> Optional[Evidence]:
+        """Updates a piece of evidence."""
+        evidence = db.get(Evidence, evidence_id)
+        if not evidence:
+            return None
 
-            if status_filter:
-                query = query.where(Evidence.status == status_filter)
+        for key, value in update_data.items():
+            setattr(evidence, key, value)
 
-            evidence_list = session.exec(query).all()
-            return evidence_list
+        db.add(evidence)
+        db.commit()
+        db.refresh(evidence)
+        return evidence
+
+    def delete_evidence_by_id(self, db: Session, evidence_id: int) -> bool:
+        """Deletes a piece of evidence by its ID."""
+        evidence = db.get(Evidence, evidence_id)
+        if evidence:
+            db.delete(evidence)
+            db.commit()
+            return True
+        return False
+
+    # --- Existing methods from CLI ---
+
+    def create_evidence_record(self, db: Session, target: Target, findings: List[str]):
+        """Creates multiple evidence records from a list of finding strings."""
+        for finding in findings:
+            evidence = Evidence(finding_summary=finding, target_id=target.id)
+            db.add(evidence)
+        db.commit()
+
+    def get_evidence(self, db: Session, status_filter: Optional[str] = None) -> List[Evidence]:
+        """Retrieves a list of evidence, optionally filtered by status."""
+        statement = select(Evidence)
+        if status_filter:
+            statement = statement.where(Evidence.status == status_filter)
+        results = db.exec(statement)
+        return results.all()
+
+    def update_evidence_status(self, db: Session, evidence_id: int, new_status: str) -> bool:
+        """Updates the status of a specific piece of evidence."""
+        evidence = db.get(Evidence, evidence_id)
+        if evidence:
+            evidence.status = new_status
+            db.add(evidence)
+            db.commit()
+            return True
+        return False
