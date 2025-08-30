@@ -4,22 +4,26 @@ from .database import create_db_and_tables
 from .logging_setup import setup_logging
 from .routers import auth, targets, evidence, reports
 
+
+# --- Lifespan Management ---
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manages application startup and shutdown events.
+    """
+    setup_logging(log_to_file=True)
+    create_db_and_tables()
+    yield
+
 # Create the main FastAPI app
 app = FastAPI(
     title="Bounty Command Center API",
     description="API for managing bug bounty targets and evidence.",
     version="1.0.0",
+    lifespan=lifespan,
 )
-
-# --- Event Handlers ---
-@app.on_event("startup")
-def on_startup():
-    """
-    This function runs when the application starts.
-    It configures logging and ensures the database is ready.
-    """
-    setup_logging(log_to_file=True)
-    create_db_and_tables()
 
 # --- Routers ---
 app.include_router(auth.router)

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Field, SQLModel, Relationship, JSON, Column
 
 class Target(SQLModel, table=True):
@@ -15,7 +15,7 @@ class Target(SQLModel, table=True):
 
 class Evidence(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finding_summary: str
     reproduction_steps: str = Field(default="")
     severity: str = Field(default="Informational")
