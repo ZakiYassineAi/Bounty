@@ -1,141 +1,142 @@
 import os
 import asyncio
-from typing import List, Dict, Any, Optional
-import aiohttp
+from typing import List, Dict, Any, Optional, Tuple
+import httpx
 import structlog
+from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
+
 from .base_harvester import BaseHarvester
 
 log = structlog.get_logger()
 
+# --- Custom Exception for Retrying ---
+class RetryableHTTPError(Exception):
+    """Custom exception for HTTP status codes we want to retry on."""
+    def __init__(self, status_code: int, message: str = "Retryable HTTP Error"):
+        self.status_code = status_code
+        self.message = message
+        super().__init__(f"{message}: Status {status_code}")
+
+def is_retryable_error(exception: BaseException) -> bool:
+    """Return True if the exception is a retryable HTTP error."""
+    return isinstance(exception, (httpx.TimeoutException, httpx.ConnectError, RetryableHTTPError))
+
 class HackeroneHarvester(BaseHarvester):
     """
-    Harvester for the HackerOne bug bounty platform.
-
-    This harvester requires a HackerOne username and API token to be set as
-    environment variables:
-    - HACKERONE_USERNAME
-    - HACKERONE_API_TOKEN
+    A robust, compliant harvester for the HackerOne bug bounty platform.
+    Uses httpx, tenacity for retries, and respects ETag headers.
     """
     def __init__(self):
         super().__init__(platform_name="HackerOne", platform_url="https://hackerone.com")
         self.api_username = os.getenv("HACKERONE_USERNAME")
         self.api_token = os.getenv("HACKERONE_API_TOKEN")
         self.base_url = "https://api.hackerone.com/v1/hackers"
-        self.headers = {'Accept': 'application/json'}
 
         if not self.api_username or not self.api_token:
-            log.error("HackerOne credentials not found in environment variables.",
-                      instructions="Please set HACKERONE_USERNAME and HACKERONE_API_TOKEN.")
+            log.error("H1 credentials not found in env.", instructions="Set HACKERONE_USERNAME and HACKERONE_API_TOKEN.")
             raise ValueError("HackerOne API credentials are not configured.")
 
-        self.auth = aiohttp.BasicAuth(self.api_username, self.api_token)
+        self.auth = httpx.BasicAuth(self.api_username, self.api_token)
 
-    async def _fetch_paginated_data(self, session: aiohttp.ClientSession, url: str) -> List[Dict[str, Any]]:
-        """Generic helper to fetch all pages from a paginated HackerOne endpoint."""
+    @retry(
+        wait=wait_random_exponential(multiplier=1, max=30),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception_type(RetryableHTTPError)
+    )
+    async def _make_request(
+        self, client: httpx.AsyncClient, url: str, headers: Optional[Dict[str, str]] = None
+    ) -> httpx.Response:
+        """Makes a robust, retrying GET request."""
+        log.debug("Requesting URL", url=url, headers=headers)
+        response = await client.get(url, headers=headers, auth=self.auth, timeout=30.0)
+
+        # Raise retryable error for server-side issues
+        if response.status_code in [500, 502, 503, 504]:
+            raise RetryableHTTPError(status_code=response.status_code)
+
+        response.raise_for_status() # Raise for other 4xx client errors
+        return response
+
+    async def _fetch_paginated_data(
+        self, client: httpx.AsyncClient, url: str, etag: Optional[str] = None
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        """
+        Fetches all pages from a paginated HackerOne endpoint, handling ETag.
+        Returns the data and the new ETag.
+        """
         all_data = []
-        page_number = 1
-        while True:
-            params = {'page[number]': str(page_number), 'page[size]': '100'}
-            try:
-                response = await session.get(url, headers=self.headers, auth=self.auth, params=params)
-                response.raise_for_status()
-                page_json = await response.json()
+        request_headers = {'Accept': 'application/json'}
+        if etag:
+            request_headers['If-None-Match'] = etag
 
+        try:
+            response = await self._make_request(client, url, headers=request_headers)
+
+            if response.status_code == 304:
+                log.info("Data not modified (304)", url=url)
+                return [], etag
+
+            new_etag = response.headers.get('etag')
+            page_json = response.json()
+
+            while True:
                 data = page_json.get('data')
                 if not data:
                     break
-
                 all_data.extend(data)
 
-                if 'next' in page_json.get('links', {}):
-                    page_number += 1
-                else:
-                    break # No more pages
-            except aiohttp.ClientError as e:
-                log.error("API request failed", url=url, page=page_number, error=str(e))
-                # Depending on the error, you might want to break or retry.
-                # For a 404 on a sub-resource like scopes, it's fine to just stop.
-                if e.status == 404:
-                    log.warning("Resource not found, likely no items.", url=url)
-                break
-            except Exception as e:
-                log.error("An unexpected error occurred during pagination", url=url, error=str(e))
-                break
-        return all_data
+                next_url = page_json.get('links', {}).get('next')
+                if not next_url:
+                    break
 
-    async def _fetch_program_details(self, session: aiohttp.ClientSession, program_handle: str) -> Optional[Dict[str, Any]]:
-        """Fetches detailed information for a single program."""
-        url = f"{self.base_url}/programs/{program_handle}"
-        try:
-            response = await session.get(url, headers=self.headers, auth=self.auth)
-            response.raise_for_status()
-            return await response.json()
-        except aiohttp.ClientError as e:
-            log.error("Failed to fetch program details", handle=program_handle, error=str(e))
-            return None
+                log.debug("Fetching next page", url=next_url)
+                response = await self._make_request(client, next_url)
+                page_json = response.json()
 
-    async def fetch_programs(self, session: aiohttp.ClientSession) -> List[Dict[str, Any]]:
+            return all_data, new_etag
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404: # Don't log 404 as an error, it's expected
+                log.error("API request failed", url=url, status=e.response.status_code)
+            return [], etag
+        except Exception as e:
+            log.error("An unexpected error occurred during pagination", url=url, error=str(e))
+            return [], etag
+
+    async def fetch_programs(
+        self, client: httpx.AsyncClient, last_run_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
-        Fetches all programs from HackerOne, enriches them with details and scope,
-        and returns a normalized list.
+        Fetches all programs from HackerOne, normalizes them, and returns them
+        along with the new run metadata (like ETag).
         """
-        log.info(f"Starting program harvest from {self.platform_name}...")
+        log.info("Starting program harvest", platform=self.platform_name)
+
+        etag = last_run_metadata.get("etag") if last_run_metadata else None
 
         programs_url = f"{self.base_url}/programs"
-        basic_programs = await self._fetch_paginated_data(session, programs_url)
+        basic_programs, new_etag = await self._fetch_paginated_data(client, programs_url, etag=etag)
 
         if not basic_programs:
-            log.warning("No programs were fetched from HackerOne.")
-            return []
+            log.info("No new or updated programs fetched from HackerOne.")
+            return {"programs": [], "metadata": {"etag": new_etag or etag}}
 
-        enriched_programs = []
+        normalized_programs = []
         for program_data in basic_programs:
             attributes = program_data.get('attributes', {})
             handle = attributes.get('handle')
-
             if not handle:
-                log.warning("Found program data without a handle, skipping.", data=program_data)
                 continue
 
-            # Fetch details and scopes concurrently
-            details_task = self._fetch_program_details(session, handle)
-            scopes_url = f"{self.base_url}/programs/{handle}/structured_scopes"
-            scopes_task = self._fetch_paginated_data(session, scopes_url)
-
-            details_response, scopes_data = await asyncio.gather(details_task, scopes_task)
-
-            # Normalize the program data
-            normalized_program = {
+            normalized_programs.append({
+                "external_id": program_data.get("id"),
                 "platform_name": self.platform_name,
                 "name": attributes.get('name'),
                 "program_url": f"https://hackerone.com/{handle}",
+                "handle": handle,
                 "offers_bounties": attributes.get('offers_bounties', False),
                 "submission_state": attributes.get('submission_state'),
-                "handle": handle,
-                "policy": "",
-                "scope": [],
-            }
+            })
 
-            if details_response and 'data' in details_response:
-                details_attr = details_response['data'].get('attributes', {})
-                normalized_program['policy'] = details_attr.get('policy', '')
-
-            if scopes_data:
-                normalized_program['scope'] = [
-                    {
-                        "asset_type": s.get('attributes', {}).get('asset_type'),
-                        "asset_identifier": s.get('attributes', {}).get('asset_identifier'),
-                        "eligible_for_bounty": s.get('attributes', {}).get('eligible_for_bounty'),
-                        "instruction": s.get('attributes', {}).get('instruction'),
-                    }
-                    for s in scopes_data
-                ]
-
-            enriched_programs.append(normalized_program)
-            log.info(f"Successfully enriched program", handle=handle)
-
-            # A small, respectful delay to avoid overwhelming the API
-            await asyncio.sleep(0.1)
-
-        log.info(f"Finished fetching and enriching {len(enriched_programs)} programs from {self.platform_name}.")
-        return enriched_programs
+        log.info("Finished fetching programs", count=len(normalized_programs))
+        return {"programs": normalized_programs, "metadata": {"etag": new_etag}}

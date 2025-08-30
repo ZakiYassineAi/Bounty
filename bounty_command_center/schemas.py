@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-# --- Target Schemas ---
+# --- Target Schemas (V1 - to be deprecated) ---
 
 class TargetBase(BaseModel):
     name: str
@@ -20,7 +20,7 @@ class TargetUpdate(BaseModel):
     url: Optional[str] = None
     scope: Optional[List[str]] = None
 
-# --- Evidence Schemas ---
+# --- Evidence Schemas (V1 - to be deprecated) ---
 class EvidenceBase(BaseModel):
     finding_summary: str
     reproduction_steps: str
@@ -52,16 +52,7 @@ class UserCreate(UserBase):
 class UserRead(UserBase):
     id: int
 
-# --- Program Schemas ---
-
-class RewardRead(BaseModel):
-    id: int
-    severity: str
-    min_payout: Optional[int] = None
-    max_payout: Optional[int] = None
-
-    class Config:
-        orm_mode = True
+# --- Program Schemas (V2) ---
 
 class PlatformRead(BaseModel):
     id: int
@@ -71,26 +62,31 @@ class PlatformRead(BaseModel):
     class Config:
         orm_mode = True
 
-class ProgramRead(BaseModel):
+class ProgramReadBasic(BaseModel):
+    """A lighter Program model for list views."""
     id: int
     name: str
     program_url: str
-    is_active: bool
-    last_harvested_at: datetime
-    scope: Dict[str, Any]
+    status: str
+    offers_bounties: bool
+    min_payout: Optional[int] = None
+    max_payout: Optional[int] = None
     platform: PlatformRead
-    rewards: List[RewardRead]
+    last_seen_at: datetime
 
     class Config:
         orm_mode = True
 
-class ProgramReadBasic(BaseModel):
-    """A simpler Program model for lists, without full scope/rewards."""
-    id: int
-    name: str
-    program_url: str
-    is_active: bool
-    platform: PlatformRead
+class PaginatedProgramResponse(BaseModel):
+    """Response model for paginated program lists."""
+    items: List[ProgramReadBasic]
+    next_cursor: Optional[int] = None
+
+class ProgramRead(ProgramReadBasic):
+    """Full Program model for detail view."""
+    # This will eventually be expanded with assets, versions, etc.
+    assets: List[Dict[str, Any]] = [] # Placeholder for now
+    versions: List[Dict[str, Any]] = [] # Placeholder for now
 
     class Config:
         orm_mode = True

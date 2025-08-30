@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
-import aiohttp
+from typing import Dict, Any, Optional
+import httpx
 
 class BaseHarvester(ABC):
     """
@@ -11,15 +11,21 @@ class BaseHarvester(ABC):
         self.platform_url = platform_url
 
     @abstractmethod
-    async def fetch_programs(self, session: aiohttp.ClientSession) -> List[Dict[str, Any]]:
+    async def fetch_programs(
+        self, client: httpx.AsyncClient, last_run_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Fetches all programs from the platform.
 
         Args:
-            session: An aiohttp.ClientSession object for making HTTP requests.
+            client: An httpx.AsyncClient for making HTTP requests.
+            last_run_metadata: A dictionary containing metadata from the last
+                               successful run, e.g., ETags.
 
         Returns:
-            A list of dictionaries, where each dictionary represents a program.
+            A dictionary containing the list of fetched programs and new
+            metadata for the next run.
+            Example: {"programs": [...], "metadata": {"etag": "..."}}
         """
         pass
 

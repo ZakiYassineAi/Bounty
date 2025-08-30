@@ -1,6 +1,5 @@
 import asyncio
-from typing import List
-import aiohttp
+import httpx
 from sqlmodel import Session
 import structlog
 
@@ -14,54 +13,63 @@ class HarvesterAggregator:
     """
     Manages and runs all registered bug bounty harvesters and saves the data.
     """
-    def __init__(self):
-        self._harvesters: List[BaseHarvester] = []
+    def __init__(self, db_session: Session):
+        self.db_session = db_session
+        self.persistence = DataPersistence(db_session)
+        self._harvesters: list[BaseHarvester] = []
         self._register_harvesters()
 
     def _register_harvesters(self):
-        """Initializes and registers all the available harvesters."""
+        """Initializes and registers all available harvesters."""
         try:
             self.add_harvester(HackeroneHarvester())
             log.info("Registered HackerOne harvester.")
         except ValueError as e:
-            log.error("Failed to register HackeroneHarvester", error=str(e),
-                      instructions="Ensure H1 credentials are set in the environment.")
-        # Future harvesters would be registered here.
+            log.error("Failed to register HackeroneHarvester", error=str(e))
 
     def add_harvester(self, harvester: BaseHarvester):
         """Adds a harvester to the aggregator."""
         self._harvesters.append(harvester)
 
-    async def run_all(self, db_session: Session):
+    async def run_harvester(self, harvester: BaseHarvester, client: httpx.AsyncClient):
+        """Runs a single harvester and persists its data."""
+        platform_name = harvester.platform_name
+        log.info("Running harvester", platform=platform_name)
+
+        try:
+            platform = self.persistence.get_or_create_platform(
+                platform_name=platform_name,
+                platform_url=harvester.platform_url
+            )
+
+            last_run_meta = self.persistence.get_last_run_metadata(platform_name)
+
+            result = await harvester.fetch_programs(client, last_run_meta)
+
+            programs = result.get("programs")
+            new_meta = result.get("metadata")
+
+            if programs:
+                self.persistence.upsert_programs_batch(programs, platform.id)
+
+            if new_meta:
+                self.persistence.save_run_metadata(platform_name, new_meta)
+
+            self.db_session.commit()
+            log.info("Successfully completed harvester run.", platform=platform_name)
+
+        except Exception as e:
+            log.error("Harvester run failed", platform=platform_name, error=str(e), exc_info=True)
+            self.db_session.rollback()
+
+    async def run_all(self):
         """
-        Runs all registered harvesters concurrently and saves the results
-        to the database.
+        Runs all registered harvesters concurrently.
         """
         if not self._harvesters:
-            log.warning("No harvesters are registered. Skipping run.")
+            log.warning("No harvesters registered. Skipping run.")
             return
 
-        persistence = DataPersistence(db_session)
-
-        async with aiohttp.ClientSession() as session:
-            tasks = [harvester.fetch_programs(session) for harvester in self._harvesters]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for harvester, result in zip(self._harvesters, results):
-                platform_name = harvester.platform_name
-                if isinstance(result, Exception):
-                    log.error("Failed to fetch programs", platform=platform_name, error=result)
-                elif result:
-                    log.info(f"Successfully fetched {len(result)} programs from {platform_name}. Saving to DB...")
-                    try:
-                        persistence.save_programs(result)
-                        log.info("Successfully saved programs", platform=platform_name)
-                    except Exception as e:
-                        log.error("Failed to save programs to database", platform=platform_name, error=str(e))
-                else:
-                    log.info("No programs fetched for platform", platform=platform_name)
-
-if __name__ == '__main__':
-    # This is for standalone testing and requires a DB session.
-    # You would need to set up a session similar to how the main app does it.
-    print("This script is not meant to be run standalone without a database session.")
+        async with httpx.AsyncClient() as client:
+            tasks = [self.run_harvester(h, client) for h in self._harvesters]
+            await asyncio.gather(*tasks)
