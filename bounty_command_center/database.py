@@ -6,7 +6,10 @@ DATABASE_URL = "sqlite:///bounty_data.db"
 # Create the database engine
 # `connect_args` is specific to SQLite to disable same-thread checking,
 # which is useful for some web frameworks but good practice to have.
-engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL, echo=True, connect_args={"check_same_thread": False}
+)
+
 
 def create_db_and_tables():
     """
@@ -16,6 +19,7 @@ def create_db_and_tables():
     # The SQLModel.metadata.create_all() function uses the engine to create
     # all the tables that inherit from SQLModel.
     SQLModel.metadata.create_all(engine)
+
 
 def get_session():
     """

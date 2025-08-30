@@ -27,7 +27,11 @@ def generate_pdf_report_for_target(db: Session, target_id: int) -> bytes | None:
     log.info("Generating PDF report for target", target_id=target_id)
 
     # Use selectinload to eagerly load all related evidence
-    query = select(Target).options(selectinload(Target.evidence)).where(Target.id == target_id)
+    query = (
+        select(Target)
+        .options(selectinload(Target.evidence))
+        .where(Target.id == target_id)
+    )
     target = db.exec(query).first()
 
     if not target:
@@ -45,7 +49,9 @@ def generate_pdf_report_for_target(db: Session, target_id: int) -> bytes | None:
     else:
         markdown_content += "## Summary of Findings\n\n"
         for i, evidence in enumerate(target.evidence, 1):
-            markdown_content += f"### {i}. {evidence.finding_summary} ({evidence.severity})\n"
+            markdown_content += (
+                f"### {i}. {evidence.finding_summary} ({evidence.severity})\n"
+            )
             markdown_content += f"- **Status:** {evidence.status.upper()}\n"
             markdown_content += f"- **Timestamp:** {evidence.timestamp.isoformat()}\n\n"
             markdown_content += "**Reproduction Steps:**\n"
@@ -58,10 +64,16 @@ def generate_pdf_report_for_target(db: Session, target_id: int) -> bytes | None:
     try:
         html_content = markdown.markdown(markdown_content)
         pdf_bytes = HTML(string=html_content).write_pdf()
-        log.info("Successfully generated PDF report", target_id=target_id, pdf_size=len(pdf_bytes))
+        log.info(
+            "Successfully generated PDF report",
+            target_id=target_id,
+            pdf_size=len(pdf_bytes),
+        )
         return pdf_bytes
     except Exception as e:
-        log.exception("Failed to generate PDF report", target_id=target_id, error=str(e))
+        log.exception(
+            "Failed to generate PDF report", target_id=target_id, error=str(e)
+        )
         return None
 
 
@@ -78,7 +90,11 @@ def generate_pdf_report_for_evidence(db: Session, evidence_id: int) -> bytes | N
     """
     log.info("Generating PDF report for evidence", evidence_id=evidence_id)
 
-    query = select(Evidence).options(selectinload(Evidence.target)).where(Evidence.id == evidence_id)
+    query = (
+        select(Evidence)
+        .options(selectinload(Evidence.target))
+        .where(Evidence.id == evidence_id)
+    )
     evidence = db.exec(query).first()
 
     if not evidence:
@@ -110,10 +126,18 @@ def generate_pdf_report_for_evidence(db: Session, evidence_id: int) -> bytes | N
     try:
         html_content = markdown.markdown(markdown_content)
         pdf_bytes = HTML(string=html_content).write_pdf()
-        log.info("Successfully generated PDF report for evidence", evidence_id=evidence_id, pdf_size=len(pdf_bytes))
+        log.info(
+            "Successfully generated PDF report for evidence",
+            evidence_id=evidence_id,
+            pdf_size=len(pdf_bytes),
+        )
         return pdf_bytes
     except Exception as e:
-        log.exception("Failed to generate PDF report for evidence", evidence_id=evidence_id, error=str(e))
+        log.exception(
+            "Failed to generate PDF report for evidence",
+            evidence_id=evidence_id,
+            error=str(e),
+        )
         return None
 
 
@@ -147,12 +171,12 @@ def generate_markdown_report(db: Session, evidence_id: int) -> Path | None:
     export_dir = Path(settings.reporting.export_directory)
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp_str = evidence.timestamp.strftime('%Y%m%d-%H%M%S')
+    timestamp_str = evidence.timestamp.strftime("%Y%m%d-%H%M%S")
 
     filename = settings.reporting.filename_template.format(
         target_name=evidence.target.name.replace(" ", "_"),
         evidence_id=evidence.id,
-        timestamp=timestamp_str
+        timestamp=timestamp_str,
     )
     report_path = export_dir / filename
 
@@ -188,10 +212,12 @@ def generate_markdown_report(db: Session, evidence_id: int) -> Path | None:
 
     # 3. Write content to file
     try:
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(content)
         log.info("Successfully generated report", path=str(report_path))
         return report_path
     except IOError as e:
-        log.exception("Failed to write report to file", path=str(report_path), error=str(e))
+        log.exception(
+            "Failed to write report to file", path=str(report_path), error=str(e)
+        )
         return None

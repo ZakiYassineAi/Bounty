@@ -18,6 +18,7 @@ admin_researcher_access = role_checker(["admin", "researcher"])
 admin_access = role_checker(["admin"])
 any_user_access = role_checker(["admin", "researcher", "viewer"])
 
+
 @router.post("/", response_model=schemas.EvidenceRead, status_code=201)
 def create_evidence(
     evidence: schemas.EvidenceCreate,
@@ -38,8 +39,12 @@ def create_evidence(
         target_id=evidence.target_id,
     )
     if not db_evidence:
-        raise HTTPException(status_code=400, detail="Could not create evidence. The target ID may be invalid.")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not create evidence. The target ID may be invalid.",
+        )
     return db_evidence
+
 
 @router.get("/", response_model=List[schemas.EvidenceRead])
 def read_evidence(
@@ -64,6 +69,7 @@ def read_evidence(
     )
     return evidence_list
 
+
 @router.get("/{evidence_id}", response_model=schemas.EvidenceRead)
 def read_single_evidence(
     evidence_id: int,
@@ -80,6 +86,7 @@ def read_single_evidence(
         raise HTTPException(status_code=404, detail="Evidence not found")
     return evidence
 
+
 @router.put("/{evidence_id}", response_model=schemas.EvidenceRead)
 def update_evidence(
     evidence_id: int,
@@ -92,10 +99,15 @@ def update_evidence(
     - **Allowed for:** admin, researcher
     """
     em = evidence_manager.EvidenceManager()
-    updated_evidence = em.update_evidence(db=db, evidence_id=evidence_id, update_data=evidence_update.dict(exclude_unset=True))
+    updated_evidence = em.update_evidence(
+        db=db,
+        evidence_id=evidence_id,
+        update_data=evidence_update.dict(exclude_unset=True),
+    )
     if not updated_evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
     return updated_evidence
+
 
 @router.delete("/{evidence_id}", status_code=204)
 def delete_evidence(

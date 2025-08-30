@@ -2,10 +2,19 @@ from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from .models import Evidence, Target
 
+
 class EvidenceManager:
     """Manages CRUD operations for evidence in the database."""
 
-    def create_evidence(self, db: Session, finding_summary: str, reproduction_steps: str, severity: str, status: str, target_id: int) -> Optional[Evidence]:
+    def create_evidence(
+        self,
+        db: Session,
+        finding_summary: str,
+        reproduction_steps: str,
+        severity: str,
+        status: str,
+        target_id: int,
+    ) -> Optional[Evidence]:
         """Creates a new evidence record and links it to a target."""
         target = db.get(Target, target_id)
         if not target:
@@ -16,7 +25,7 @@ class EvidenceManager:
             reproduction_steps=reproduction_steps,
             severity=severity,
             status=status,
-            target_id=target_id
+            target_id=target_id,
         )
         db.add(new_evidence)
         db.commit()
@@ -45,7 +54,9 @@ class EvidenceManager:
         statement = statement.offset(skip).limit(limit)
         return db.exec(statement).all()
 
-    def update_evidence(self, db: Session, evidence_id: int, update_data: Dict[str, Any]) -> Optional[Evidence]:
+    def update_evidence(
+        self, db: Session, evidence_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Evidence]:
         """Updates a piece of evidence."""
         evidence = db.get(Evidence, evidence_id)
         if not evidence:
@@ -77,7 +88,9 @@ class EvidenceManager:
             db.add(evidence)
         db.commit()
 
-    def get_evidence(self, db: Session, status_filter: Optional[str] = None) -> List[Evidence]:
+    def get_evidence(
+        self, db: Session, status_filter: Optional[str] = None
+    ) -> List[Evidence]:
         """Retrieves a list of evidence, optionally filtered by status."""
         statement = select(Evidence)
         if status_filter:
@@ -85,7 +98,9 @@ class EvidenceManager:
         results = db.exec(statement)
         return results.all()
 
-    def update_evidence_status(self, db: Session, evidence_id: int, new_status: str) -> bool:
+    def update_evidence_status(
+        self, db: Session, evidence_id: int, new_status: str
+    ) -> bool:
         """Updates the status of a specific piece of evidence."""
         evidence = db.get(Evidence, evidence_id)
         if evidence:

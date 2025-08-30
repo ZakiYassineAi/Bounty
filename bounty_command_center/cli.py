@@ -32,27 +32,49 @@ runner = AsyncToolRunner()
 
 # --- User Commands ---
 
+
 @user_app.command("create")
 def create_user(
-    username: str = typer.Option(..., "--username", "-u", help="The username for the new user."),
-    password: str = typer.Option(..., "--password", "-p", prompt=True, hide_input=True, help="The password for the new user."),
-    role: str = typer.Option("viewer", "--role", "-r", help="The role for the new user (admin, researcher, viewer)."),
+    username: str = typer.Option(
+        ..., "--username", "-u", help="The username for the new user."
+    ),
+    password: str = typer.Option(
+        ...,
+        "--password",
+        "-p",
+        prompt=True,
+        hide_input=True,
+        help="The password for the new user.",
+    ),
+    role: str = typer.Option(
+        "viewer",
+        "--role",
+        "-r",
+        help="The role for the new user (admin, researcher, viewer).",
+    ),
 ):
     """Creates a new user in the database."""
     log = get_logger("create_user")
     log.info("Attempting to create a new user", username=username, role=role)
 
     if role not in ["admin", "researcher", "viewer"]:
-        console.print(f"[red]✖[/red] Invalid role '{role}'. Must be one of: admin, researcher, viewer.")
+        console.print(
+            f"[red]✖[/red] Invalid role '{role}'. Must be one of: admin, researcher, viewer."
+        )
         raise typer.Exit(code=1)
 
     with Session(engine) as db:
         user = um.create_user(db, username, password, role)
         if user:
-            console.print(f"[green]✔[/green] Successfully created user: {username} with role {role}")
+            console.print(
+                f"[green]✔[/green] Successfully created user: {username} with role {role}"
+            )
         else:
-            console.print(f"[red]✖[/red] Failed to create user. Username may already exist.")
+            console.print(
+                "[red]✖[/red] Failed to create user. Username may already exist."
+            )
             raise typer.Exit(code=1)
+
 
 @app.callback()
 def main_callback():
@@ -60,24 +82,31 @@ def main_callback():
     setup_logging()
     create_db_and_tables()
 
+
 # --- Target Commands ---
+
 
 @target_app.command("add")
 def add_target(
-    name: str = typer.Option(..., "--name", "-n", help="The unique name of the target."),
+    name: str = typer.Option(
+        ..., "--name", "-n", help="The unique name of the target."
+    ),
     url: str = typer.Option(..., "--url", "-u", help="The primary URL for the target."),
-    scope: str = typer.Option(..., "--scope", "-s", help="A comma-separated list of items in scope."),
+    scope: str = typer.Option(
+        ..., "--scope", "-s", help="A comma-separated list of items in scope."
+    ),
 ):
     """Adds a new target to the database."""
     log = get_logger("add_target")
     log.info("Attempting to add new target", name=name, url=url)
-    scope_list = [s.strip() for s in scope.split(',')]
+    scope_list = [s.strip() for s in scope.split(",")]
     with Session(engine) as db:
         if tm.add_target(db, name, url, scope_list):
             console.print(f"[green]✔[/green] Successfully added target: {name}")
         else:
-            console.print(f"[red]✖[/red] Failed to add target. It may already exist.")
+            console.print("[red]✖[/red] Failed to add target. It may already exist.")
             raise typer.Exit(code=1)
+
 
 @target_app.command("list")
 def list_targets():
@@ -93,13 +122,16 @@ def list_targets():
         table.add_column("URL", style="green")
         table.add_column("Scope")
         for target in targets:
-            table.add_row(str(target.id), target.name, target.url, ", ".join(target.scope))
+            table.add_row(
+                str(target.id), target.name, target.url, ", ".join(target.scope)
+            )
         console.print(table)
+
 
 @target_app.command("remove")
 def remove_target(
     name: str = typer.Argument(..., help="The name of the target to remove."),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Bypass confirmation prompt.")
+    yes: bool = typer.Option(False, "--yes", "-y", help="Bypass confirmation prompt."),
 ):
     """Removes a target from the database."""
     log = get_logger("remove_target")
@@ -109,15 +141,21 @@ def remove_target(
             if tm.remove_target(db, name):
                 console.print(f"[green]✔[/green] Successfully removed target: {name}")
             else:
-                console.print(f"[red]✖[/red] Failed to remove target. It may not exist.")
+                console.print("[red]✖[/red] Failed to remove target. It may not exist.")
                 raise typer.Exit(code=1)
     else:
         console.print("Operation cancelled.")
 
+
 # --- Evidence Commands ---
 
+
 @evidence_app.command("list")
-def list_evidence(status: Annotated[str, typer.Option("--status", "-s", help="Filter by evidence status.")] = None):
+def list_evidence(
+    status: Annotated[
+        str, typer.Option("--status", "-s", help="Filter by evidence status.")
+    ] = None,
+):
     """Lists collected evidence, optionally filtering by status."""
     console.print(f"\n--- Collected Evidence Log (Filter: {status or 'All'}) ---")
     with Session(engine) as db:
@@ -133,28 +171,43 @@ def list_evidence(status: Annotated[str, typer.Option("--status", "-s", help="Fi
         table.add_column("Timestamp")
         for ev in evidence_list:
             table.add_row(
-                str(ev.id), ev.target.name if ev.target else "N/A", ev.status,
-                ev.finding_summary, ev.timestamp.strftime('%Y-%m-%d %H:%M')
+                str(ev.id),
+                ev.target.name if ev.target else "N/A",
+                ev.status,
+                ev.finding_summary,
+                ev.timestamp.strftime("%Y-%m-%d %H:%M"),
             )
         console.print(table)
+
 
 @evidence_app.command("update")
 def update_evidence_status(
     evidence_id: int = typer.Argument(..., help="The ID of the evidence to update."),
-    new_status: str = typer.Argument(..., help="The new status (e.g., reviewed, confirmed).")
+    new_status: str = typer.Argument(
+        ..., help="The new status (e.g., reviewed, confirmed)."
+    ),
 ):
     """Updates the status of a piece of evidence."""
     log = get_logger("update_evidence")
-    log.info("Attempting to update evidence status", id=evidence_id, new_status=new_status)
+    log.info(
+        "Attempting to update evidence status", id=evidence_id, new_status=new_status
+    )
     with Session(engine) as db:
         if em.update_evidence_status(db, evidence_id, new_status):
-            console.print(f"[green]✔[/green] Successfully updated evidence {evidence_id} to '{new_status}'.")
+            console.print(
+                f"[green]✔[/green] Successfully updated evidence {evidence_id} to '{new_status}'."
+            )
         else:
-            console.print(f"[red]✖[/red] Failed to update evidence. The ID may not exist.")
+            console.print(
+                "[red]✖[/red] Failed to update evidence. The ID may not exist."
+            )
             raise typer.Exit(code=1)
 
+
 @evidence_app.command("report")
-def export_report(evidence_id: int = typer.Argument(..., help="The ID of the evidence to export.")):
+def export_report(
+    evidence_id: int = typer.Argument(..., help="The ID of the evidence to export.")
+):
     """Exports a specific piece of evidence to a Markdown report."""
     log = get_logger("export_report")
     log.info("Exporting report for evidence", evidence_id=evidence_id)
@@ -162,16 +215,21 @@ def export_report(evidence_id: int = typer.Argument(..., help="The ID of the evi
         # Note: report_generator needs to be updated to accept a db session
         report_path = report_generator.generate_markdown_report(db, evidence_id)
         if report_path:
-            console.print(f"[green]✔[/green] Successfully generated report at: {report_path}")
+            console.print(
+                f"[green]✔[/green] Successfully generated report at: {report_path}"
+            )
         else:
-            console.print(f"[red]✖[/red] Failed to generate report. Check logs for details.")
+            console.print(
+                "[red]✖[/red] Failed to generate report. Check logs for details."
+            )
             raise typer.Exit(code=1)
+
 
 # --- Main App Commands ---
 
+
 async def _run_scan_async(target_name: str):
     """Async helper function to run scans and process results."""
-    log = get_logger("run_scan")
     with Session(engine) as db:
         target = tm.get_target_by_name(db, target_name)
         if not target:
@@ -200,20 +258,28 @@ async def _run_scan_async(target_name: str):
             finding = f"[{res.command}] - Success\n---\n{res.stdout}"
             new_findings.append(finding)
         elif res.return_code != 0:
-            finding = f"[{res.command}] - Failed (Code: {res.return_code})\n---\n{res.stderr}"
+            finding = (
+                f"[{res.command}] - Failed (Code: {res.return_code})\n---\n{res.stderr}"
+            )
             new_findings.append(finding)
 
     if new_findings:
         with Session(engine) as db:
             em.create_evidence_record(db, target, new_findings)
-            console.print(f"[green]✔[/green] Scan complete. Found {len(new_findings)} new findings.")
+            console.print(
+                f"[green]✔[/green] Scan complete. Found {len(new_findings)} new findings."
+            )
     else:
         console.print("[green]✔[/green] Scan complete. No new findings.")
 
+
 @app.command()
-def run_scan(target_name: str = typer.Argument(..., help="The name of the target to scan.")):
+def run_scan(
+    target_name: str = typer.Argument(..., help="The name of the target to scan.")
+):
     """Runs a set of reconnaissance scans on a specific target."""
     asyncio.run(_run_scan_async(target_name))
+
 
 @app.command()
 def migrate():
@@ -222,6 +288,7 @@ def migrate():
     console.print("Starting data migration from JSON files...")
     try:
         from .migrate import migrate_data
+
         with Session(engine) as db:
             migrate_data(db)
         console.print("[green]✔[/green] Data migration completed.")
@@ -233,6 +300,7 @@ def migrate():
         log.exception("An error occurred during migration.")
         console.print(f"[red]✖[/red] An error occurred during migration: {e}")
         raise typer.Exit(code=1)
+
 
 if __name__ == "__main__":
     app()
