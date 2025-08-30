@@ -1,23 +1,24 @@
 import requests
 import random
+from .models import Target
 
 # These classes simulate finding specific types of vulnerabilities.
 class XSSSimulator:
-    def scan(self, target):
+    def scan(self, target: Target):
         """Simulates scanning for XSS vulnerabilities."""
         if random.random() < 0.1: # 10% chance
             return "[simulated-xss][medium] Reflected XSS found on search.php?query="
         return None
 
 class SQLiSimulator:
-    def scan(self, target):
+    def scan(self, target: Target):
         """Simulates scanning for SQL Injection vulnerabilities."""
         if random.random() < 0.05: # 5% chance
             return "[simulated-sqli][high] SQL Injection vulnerability in 'id' parameter."
         return None
 
 class CSRFSimulator:
-    def scan(self, target):
+    def scan(self, target: Target):
         """Simulates scanning for CSRF vulnerabilities."""
         if random.random() < 0.08: # 8% chance
             return "[simulated-csrf][medium] CSRF token not validated on account_update.php"
@@ -25,8 +26,8 @@ class CSRFSimulator:
 
 class GitLeakChecker:
     """Checks for an exposed .git/config file."""
-    def scan(self, target):
-        url = target.get('url', '')
+    def scan(self, target: Target):
+        url = target.url
         if not url:
             return None
 
@@ -51,7 +52,7 @@ class GitLeakChecker:
         return None
 
 class AuthBypassSimulator:
-    def scan(self, target):
+    def scan(self, target: Target):
         """Simulates scanning for Authentication Bypasses."""
         if random.random() < 0.06: # 6% chance
             return "[simulated-authbypass][critical] Authentication bypass by manipulating session cookie."
@@ -63,13 +64,13 @@ class ToolIntegrator:
     Integrates and runs various simulated scanning tools.
     This version uses a probabilistic model to simulate finding vulnerabilities.
     """
-    def __init__(self, target):
+    def __init__(self, target: Target):
         """
         Initializes the ToolIntegrator with a specific target.
-        :param target: A dictionary representing the target.
+        :param target: A Target model object.
         """
-        if not isinstance(target, dict) or 'name' not in target:
-            raise ValueError("Invalid target provided to ToolIntegrator")
+        if not isinstance(target, Target):
+            raise ValueError("Invalid target provided to ToolIntegrator, expected a Target object.")
         self.target = target
         self.simulators = {
             'XSS': XSSSimulator(),
@@ -83,7 +84,7 @@ class ToolIntegrator:
         """
         Runs all configured tool simulations and returns any findings.
         """
-        print(f"\n--- Running All Scans on {self.target['name']} ---")
+        print(f"\n--- Running All Scans on {self.target.name} ---")
         all_findings = []
 
         for name, simulator in self.simulators.items():
