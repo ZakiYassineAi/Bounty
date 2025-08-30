@@ -5,7 +5,7 @@ from .models import Evidence, Target
 class EvidenceManager:
     """Manages CRUD operations for evidence in the database."""
 
-    def create_evidence(self, db: Session, finding_summary: str, status: str, target_id: int) -> Optional[Evidence]:
+    def create_evidence(self, db: Session, finding_summary: str, reproduction_steps: str, severity: str, status: str, target_id: int) -> Optional[Evidence]:
         """Creates a new evidence record and links it to a target."""
         target = db.get(Target, target_id)
         if not target:
@@ -13,6 +13,8 @@ class EvidenceManager:
 
         new_evidence = Evidence(
             finding_summary=finding_summary,
+            reproduction_steps=reproduction_steps,
+            severity=severity,
             status=status,
             target_id=target_id
         )

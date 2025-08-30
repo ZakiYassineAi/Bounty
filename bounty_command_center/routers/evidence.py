@@ -32,6 +32,8 @@ def create_evidence(
     db_evidence = em.create_evidence(
         db=db,
         finding_summary=evidence.finding_summary,
+        reproduction_steps=evidence.reproduction_steps,
+        severity=evidence.severity,
         status=evidence.status,
         target_id=evidence.target_id,
     )
