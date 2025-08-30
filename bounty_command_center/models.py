@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship, JSON, Column
 
+
 class Target(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)
@@ -12,6 +13,7 @@ class Target(SQLModel, table=True):
     # The back_populates argument establishes a bidirectional relationship
     # between Target and Evidence
     evidence: List["Evidence"] = Relationship(back_populates="target")
+
 
 class Evidence(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -32,4 +34,4 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True, min_length=3, max_length=50)
     hashed_password: str
-    role: str # E.g., "admin", "researcher", "viewer"
+    role: str  # E.g., "admin", "researcher", "viewer"

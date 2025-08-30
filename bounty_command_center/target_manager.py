@@ -2,10 +2,13 @@ from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from .models import Target
 
+
 class TargetManager:
     """Manages CRUD operations for targets in the database."""
 
-    def add_target(self, db: Session, name: str, url: str, scope: List[str]) -> Optional[Target]:
+    def add_target(
+        self, db: Session, name: str, url: str, scope: List[str]
+    ) -> Optional[Target]:
         """Adds a new target to the database if the name is unique."""
         if self.get_target_by_name(db, name):
             return None
@@ -25,7 +28,9 @@ class TargetManager:
         """Retrieves a single target by its ID."""
         return db.get(Target, target_id)
 
-    def get_all_targets(self, db: Session, skip: int = 0, limit: int = 100) -> List[Target]:
+    def get_all_targets(
+        self, db: Session, skip: int = 0, limit: int = 100
+    ) -> List[Target]:
         """Retrieves a list of all targets with pagination."""
         statement = select(Target).offset(skip).limit(limit)
         return db.exec(statement).all()
@@ -48,7 +53,9 @@ class TargetManager:
             return True
         return False
 
-    def update_target(self, db: Session, target_id: int, update_data: Dict[str, Any]) -> Optional[Target]:
+    def update_target(
+        self, db: Session, target_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Target]:
         """Updates a target's attributes."""
         target = db.get(Target, target_id)
         if not target:

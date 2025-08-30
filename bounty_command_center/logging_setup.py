@@ -2,6 +2,7 @@ import logging
 import sys
 import structlog
 
+
 def setup_logging(log_to_file: bool = False):
     """
     Configures structlog for structured logging.
@@ -21,12 +22,14 @@ def setup_logging(log_to_file: bool = False):
     logging.basicConfig(
         format="%(message)s",
         level=logging.INFO,
-        handlers=[logging.NullHandler()],  # Don't want basicConfig to set up any handlers
+        handlers=[
+            logging.NullHandler()
+        ],  # Don't want basicConfig to set up any handlers
     )
 
     if log_to_file:
         # Log to a file in JSON format
-        handler = logging.FileHandler("app.log", mode='w')
+        handler = logging.FileHandler("app.log", mode="w")
         renderer = structlog.processors.JSONRenderer()
     else:
         # Log to the console with colors
@@ -35,7 +38,8 @@ def setup_logging(log_to_file: bool = False):
 
     # Configure structlog
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -53,6 +57,7 @@ def setup_logging(log_to_file: bool = False):
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
     root_logger.setLevel(logging.INFO)
+
 
 def get_logger(name: str):
     """
