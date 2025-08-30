@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
 python-jose[cryptography]
-passlib[bcrypt]
+passlib
+argon2-cffi
 python-multipart # For form data, which is needed for the token endpoint

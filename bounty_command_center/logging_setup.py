@@ -2,11 +2,11 @@ import logging
 import sys
 import structlog
 
-def setup_logging():
+def setup_logging(log_to_file: bool = False):
     """
-    Configures structlog for structured, context-aware, and readable logging.
+    Configures structlog for structured logging.
+    Logs to console by default, or to 'app.log' if log_to_file is True.
     """
-    # Define the chain of processors that will enrich the log records
     shared_processors = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
@@ -20,14 +20,22 @@ def setup_logging():
     # Configure the standard logging library to be a sink for structlog
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout,
         level=logging.INFO,
+        handlers=[logging.NullHandler()],  # Don't want basicConfig to set up any handlers
     )
 
-    # Configure structlog itself
+    if log_to_file:
+        # Log to a file in JSON format
+        handler = logging.FileHandler("app.log", mode='w')
+        renderer = structlog.processors.JSONRenderer()
+    else:
+        # Log to the console with colors
+        handler = logging.StreamHandler(sys.stdout)
+        renderer = structlog.dev.ConsoleRenderer(colors=True)
+
+    # Configure structlog
     structlog.configure(
         processors=shared_processors + [
-            # This processor is the final step, rendering the log record
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -35,22 +43,16 @@ def setup_logging():
         cache_logger_on_first_use=True,
     )
 
-    # Use a specific formatter for our handler to get colored, readable output
     formatter = structlog.stdlib.ProcessorFormatter(
-        # These run after the processors defined in `structlog.configure`
         foreign_pre_chain=shared_processors,
-        processor=structlog.dev.ConsoleRenderer(colors=True),
+        processor=renderer,
     )
 
-    # Get the root handler and set our new formatter
-    handler = logging.StreamHandler()
     handler.setFormatter(formatter)
-
-    # Replace the default handler with our custom one
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers():
-        root_logger.handlers.clear()
+    root_logger.handlers.clear()
     root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
 def get_logger(name: str):
     """

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 
-from .. import schemas
+from sqlmodel import Session
+from .. import schemas, evidence_manager
 from ..auth import role_checker
 from ..models import User
-from ..dependencies import get_evidence_manager
-from ..evidence_manager import EvidenceManager
+from ..database import get_session
 
 router = APIRouter(
     prefix="/evidence",
@@ -21,14 +21,16 @@ any_user_access = role_checker(["admin", "researcher", "viewer"])
 @router.post("/", response_model=schemas.EvidenceRead, status_code=201)
 def create_evidence(
     evidence: schemas.EvidenceCreate,
-    em: EvidenceManager = Depends(get_evidence_manager),
+    db: Session = Depends(get_session),
     current_user: User = Depends(admin_researcher_access),
 ):
     """
     Create a new piece of evidence.
     - **Allowed for:** admin, researcher
     """
+    em = evidence_manager.EvidenceManager()
     db_evidence = em.create_evidence(
+        db=db,
         finding_summary=evidence.finding_summary,
         status=evidence.status,
         target_id=evidence.target_id,
@@ -43,14 +45,16 @@ def read_evidence(
     target_id: Optional[int] = None,
     skip: int = 0,
     limit: int = Query(default=10, le=100),
-    em: evidence_manager.EvidenceManager = Depends(get_evidence_manager),
+    db: Session = Depends(get_session),
     current_user: User = Depends(any_user_access),
 ):
     """
     Retrieve all evidence with pagination and filtering.
     - **Allowed for:** admin, researcher, viewer
     """
+    em = evidence_manager.EvidenceManager()
     evidence_list = em.get_all_evidence(
+        db=db,
         status_filter=status,
         target_id_filter=target_id,
         skip=skip,
@@ -61,14 +65,15 @@ def read_evidence(
 @router.get("/{evidence_id}", response_model=schemas.EvidenceRead)
 def read_single_evidence(
     evidence_id: int,
-    em: evidence_manager.EvidenceManager = Depends(get_evidence_manager),
+    db: Session = Depends(get_session),
     current_user: User = Depends(any_user_access),
 ):
     """
     Retrieve a single piece of evidence by its ID.
     - **Allowed for:** admin, researcher, viewer
     """
-    evidence = em.get_evidence_by_id(evidence_id)
+    em = evidence_manager.EvidenceManager()
+    evidence = em.get_evidence_by_id(db=db, evidence_id=evidence_id)
     if not evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
     return evidence
@@ -77,14 +82,15 @@ def read_single_evidence(
 def update_evidence(
     evidence_id: int,
     evidence_update: schemas.EvidenceUpdate,
-    em: evidence_manager.EvidenceManager = Depends(get_evidence_manager),
+    db: Session = Depends(get_session),
     current_user: User = Depends(admin_researcher_access),
 ):
     """
     Update a piece of evidence.
     - **Allowed for:** admin, researcher
     """
-    updated_evidence = em.update_evidence(evidence_id, evidence_update.dict(exclude_unset=True))
+    em = evidence_manager.EvidenceManager()
+    updated_evidence = em.update_evidence(db=db, evidence_id=evidence_id, update_data=evidence_update.dict(exclude_unset=True))
     if not updated_evidence:
         raise HTTPException(status_code=404, detail="Evidence not found")
     return updated_evidence
@@ -92,13 +98,14 @@ def update_evidence(
 @router.delete("/{evidence_id}", status_code=204)
 def delete_evidence(
     evidence_id: int,
-    em: evidence_manager.EvidenceManager = Depends(get_evidence_manager),
+    db: Session = Depends(get_session),
     current_user: User = Depends(admin_access),
 ):
     """
     Delete a piece of evidence.
     - **Allowed for:** admin
     """
-    if not em.delete_evidence_by_id(evidence_id):
+    em = evidence_manager.EvidenceManager()
+    if not em.delete_evidence_by_id(db=db, evidence_id=evidence_id):
         raise HTTPException(status_code=404, detail="Evidence not found")
     return

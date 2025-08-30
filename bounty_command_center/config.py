@@ -28,11 +28,17 @@ class ReportingConfig(BaseModel):
 class AsyncRunnerConfig(BaseModel):
     default_timeout: int = 60
 
+class AuthConfig(BaseModel):
+    jwt_secret_key: str = "a_very_secret_key_that_should_be_changed"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 30
+
 class Settings(BaseModel):
     tools: ToolsConfig = ToolsConfig()
     api_keys: ApiKeysConfig = ApiKeysConfig()
     reporting: ReportingConfig = ReportingConfig()
     async_runner: AsyncRunnerConfig = AsyncRunnerConfig()
+    auth: AuthConfig = AuthConfig()
 
 # --- Config Loading Logic ---
 

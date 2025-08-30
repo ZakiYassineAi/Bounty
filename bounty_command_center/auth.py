@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from fastapi import Depends, HTTPException, status
@@ -10,13 +9,12 @@ from fastapi.security import OAuth2PasswordBearer
 
 from .config import settings
 from .models import User
-from .dependencies import get_user_manager
+from .database import get_session
+from . import user_manager
+from sqlmodel import Session
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # --- Token Models ---
 class Token(BaseModel):
@@ -26,15 +24,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-# --- Password and Token Functions ---
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies a plain password against a hashed one."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Hashes a plain password."""
-    return pwd_context.hash(password)
+# --- Token Functions ---
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Creates a new JWT access token."""
@@ -48,7 +38,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(
         to_encode,
         settings.auth.jwt_secret_key,
-        algorithm=settings.auth.jwt_algorithm
+        algorithm=settings.auth.jwt_algorithm,
     )
     return encoded_jwt
 
@@ -57,7 +47,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    um: "UserManager" = Depends(get_user_manager)
+    db: Session = Depends(get_session)
 ) -> User:
     """
     Decodes JWT token to get the current user.
@@ -72,7 +62,7 @@ async def get_current_user(
         payload = jwt.decode(
             token,
             settings.auth.jwt_secret_key,
-            algorithms=[settings.auth.jwt_algorithm]
+            algorithms=[settings.auth.jwt_algorithm],
         )
         username: str = payload.get("sub")
         if username is None:
@@ -81,7 +71,8 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    user = um.get_user_by_username(username=token_data.username)
+    um = user_manager.UserManager()
+    user = um.get_user_by_username(db=db, username=token_data.username)
     if user is None:
         raise credentials_exception
     return user

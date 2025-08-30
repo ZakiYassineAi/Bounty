@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from .database import create_db_and_tables
+from .logging_setup import setup_logging
 from .routers import auth, targets, evidence
 
 # Create the main FastAPI app
@@ -15,8 +16,9 @@ app = FastAPI(
 def on_startup():
     """
     This function runs when the application starts.
-    It ensures that the database and tables are created.
+    It configures logging and ensures the database is ready.
     """
+    setup_logging(log_to_file=True)
     create_db_and_tables()
 
 # --- Routers ---
