@@ -11,7 +11,7 @@ class UserManager:
         statement = select(User).where(User.username == username)
         return db.exec(statement).first()
 
-    def create_user(self, db: Session, username: str, password: str, role: str) -> Optional[User]:
+    def add_user(self, db: Session, username: str, password: str, role: str) -> Optional[User]:
         """Creates a new user and saves them to the database."""
         if self.get_user_by_username(db, username):
             return None  # User already exists

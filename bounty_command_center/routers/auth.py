@@ -3,14 +3,31 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
 from sqlmodel import Session
-from .. import auth, security, user_manager
+from .. import auth, security, user_manager, schemas
 from ..database import get_session
 from ..config import settings
+from ..models import User
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
+
+@router.post("/users", response_model=schemas.UserRead, status_code=201)
+def create_user(
+    user_in: schemas.UserCreate,
+    db: Session = Depends(get_session),
+):
+    """
+    Create a new user.
+    """
+    um = user_manager.UserManager()
+    user = um.get_user_by_username(db=db, username=user_in.username)
+    if user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    user = um.add_user(db=db, username=user_in.username, password=user_in.password, role=user_in.role)
+    return user
 
 @router.post("/token", response_model=auth.Token)
 async def login_for_access_token(

@@ -17,6 +17,8 @@ class Evidence(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     finding_summary: str
+    reproduction_steps: str = Field(default="")
+    severity: str = Field(default="Informational")
     status: str = Field(default="new")
 
     # The foreign key links this model to the Target model

@@ -22,6 +22,8 @@ class TargetUpdate(BaseModel):
 # --- Evidence Schemas ---
 class EvidenceBase(BaseModel):
     finding_summary: str
+    reproduction_steps: str
+    severity: str
     status: str = "new"
     target_id: int
 
@@ -34,7 +36,17 @@ class EvidenceRead(EvidenceBase):
 
 class EvidenceUpdate(BaseModel):
     finding_summary: Optional[str] = None
+    reproduction_steps: Optional[str] = None
+    severity: Optional[str] = None
     status: Optional[str] = None
 
 # --- User Schemas ---
-# (to be added later)
+class UserBase(BaseModel):
+    username: str
+    role: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
+    id: int

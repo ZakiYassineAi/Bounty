@@ -1,24 +1,8 @@
-{"event": "BEGIN (implicit)", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.175051Z"}
-{"event": "PRAGMA main.table_info(\"target\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.175824Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.176037Z"}
-{"event": "PRAGMA temp.table_info(\"target\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.179980Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.180172Z"}
-{"event": "PRAGMA main.table_info(\"evidence\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.183381Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.183654Z"}
-{"event": "PRAGMA temp.table_info(\"evidence\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.183952Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.184094Z"}
-{"event": "PRAGMA main.table_info(\"user\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.184476Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.184649Z"}
-{"event": "PRAGMA temp.table_info(\"user\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.184962Z"}
-{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.185102Z"}
-{"event": "\nCREATE TABLE target (\n\tid INTEGER NOT NULL, \n\tname VARCHAR NOT NULL, \n\turl VARCHAR NOT NULL, \n\tscope JSON, \n\tPRIMARY KEY (id)\n)\n\n", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.187070Z"}
-{"event": "[no key 0.00030s] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.187299Z"}
-{"event": "CREATE UNIQUE INDEX ix_target_name ON target (name)", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.194557Z"}
-{"event": "[no key 0.00042s] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.194832Z"}
-{"event": "\nCREATE TABLE user (\n\tid INTEGER NOT NULL, \n\tusername VARCHAR(50) NOT NULL, \n\thashed_password VARCHAR NOT NULL, \n\trole VARCHAR NOT NULL, \n\tPRIMARY KEY (id)\n)\n\n", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.200913Z"}
-{"event": "[no key 0.00030s] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.201109Z"}
-{"event": "CREATE UNIQUE INDEX ix_user_username ON user (username)", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.205652Z"}
-{"event": "[no key 0.00036s] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.205866Z"}
-{"event": "\nCREATE TABLE evidence (\n\tid INTEGER NOT NULL, \n\ttimestamp DATETIME NOT NULL, \n\tfinding_summary VARCHAR NOT NULL, \n\tstatus VARCHAR NOT NULL, \n\ttarget_id INTEGER, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(target_id) REFERENCES target (id)\n)\n\n", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.211258Z"}
-{"event": "[no key 0.00037s] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.211572Z"}
-{"event": "COMMIT", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T11:42:56.217395Z"}
+{"event": "BEGIN (implicit)", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.201946Z"}
+{"event": "PRAGMA main.table_info(\"target\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.202524Z"}
+{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.202877Z"}
+{"event": "PRAGMA main.table_info(\"evidence\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.204459Z"}
+{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.204973Z"}
+{"event": "PRAGMA main.table_info(\"user\")", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.205403Z"}
+{"event": "[raw sql] ()", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.205589Z"}
+{"event": "COMMIT", "level": "info", "logger": "sqlalchemy.engine.Engine", "timestamp": "2025-08-30T13:44:04.206250Z"}
