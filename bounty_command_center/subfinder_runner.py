@@ -17,7 +17,14 @@ class SubfinderRunner(AsyncToolRunner):
         # Execute the command
         result = await self._run_single_command(command, timeout=300) # 5-minute timeout
 
-        if result.return_code == 0 and result.stdout:
+        if result.aborted:
+            self.log.warning(f"Subfinder scan for {target.url} was aborted due to excessive resource usage.")
+            return [Evidence(
+                finding_summary="Scan aborted due to excessive resource usage.",
+                severity="Informational",
+                target_id=target.id,
+            )]
+        elif result.return_code == 0 and result.stdout:
             # Parse the output and create evidence
             return self._parse_output(result.stdout, target)
         elif result.stderr:

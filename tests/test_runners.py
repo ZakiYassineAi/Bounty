@@ -80,3 +80,30 @@ async def test_sqlmap_runner(target):
     assert evidence_list[0].severity == "Critical"
     assert "Error-based" in evidence_list[1].finding_summary
     assert evidence_list[1].severity == "High"
+
+@pytest.mark.asyncio
+async def test_runner_aborted_scan(target):
+    """
+    Tests that a runner correctly handles an aborted scan.
+    """
+    runner = SubfinderRunner()  # We can use any runner for this test
+
+    # Mock the command result for an aborted scan
+    mock_result = CommandResult(
+        command="",
+        stdout="",
+        stderr="Aborted",
+        return_code=1,
+        aborted=True
+    )
+
+    # Patch the _run_single_command method
+    runner._run_single_command = AsyncMock(return_value=mock_result)
+
+    # Run the runner
+    evidence_list = await runner.run(target)
+
+    # Assertions
+    assert len(evidence_list) == 1
+    assert evidence_list[0].finding_summary == "Scan aborted due to excessive resource usage."
+    assert evidence_list[0].severity == "Informational"
