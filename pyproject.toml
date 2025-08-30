@@ -1,0 +1,60 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "google-labs-jules[bot]",email = "161369871+google-labs-jules[bot]@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi (>=0.116.1,<0.117.0)",
+    "uvicorn[standard] (>=0.35.0,<0.36.0)",
+    "sqlalchemy (>=2.0.43,<3.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "pydantic (>=2.11.7,<3.0.0)",
+    "celery (>=5.5.3,<6.0.0)",
+    "redis (>=6.4.0,<7.0.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "tenacity (>=9.1.2,<10.0.0)",
+    "python-redis-lock (>=4.0.0,<5.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pytest-asyncio = "^1.1.0"
+pytest-cov = "^6.2.1"
+requests-mock = "^1.12.1"
+vcrpy = "^7.0.0"
+black = "^25.1.0"
+isort = "^6.0.1"
+mypy = "^1.17.1"
+ruff = "^0.12.11"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+source = ["bounty_command_center"]
+omit = [
+    "bounty_command_center/main.py",
+    "bounty_command_center/celery_app.py",
+    "bounty_command_center/config.py",
+    "bounty_command_center/database.py",
+    "bounty_command_center/dependencies.py",
+    "bounty_command_center/logging_setup.py",
+    "bounty_command_center/security.py",
+]
+
+[tool.coverage.report]
+fail_under = 85

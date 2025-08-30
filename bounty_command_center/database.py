@@ -6,15 +6,21 @@ DATABASE_URL = "sqlite:///bounty_data.db"
 # Create the database engine
 # `connect_args` is specific to SQLite to disable same-thread checking,
 # which is useful for some web frameworks but good practice to have.
-engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
 
 def create_db_and_tables():
     """
-    Initializes the database and creates all tables defined by SQLModel models.
-    This function should be called once when the application starts.
+    Initializes the database.
+    For development, this will drop all tables and recreate them, ensuring
+    the schema is always in sync with the models.
+    WARNING: This will delete all existing data.
     """
-    # The SQLModel.metadata.create_all() function uses the engine to create
-    # all the tables that inherit from SQLModel.
+    # Import models here to ensure they are registered with SQLModel's metadata
+    from . import models
+
+    # In a real production environment, you would use a migration tool like Alembic.
+    # For this project's current stage, we drop and recreate for simplicity.
+    SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
 
 def get_session():

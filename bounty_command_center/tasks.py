@@ -1,15 +1,20 @@
+import asyncio
+import redis
+import httpx
+from redis_lock import RedisLock
+
 from .celery_app import celery_app
 from .database import get_session
 from .models import Target, Evidence
 from .tool_integrator import ToolIntegrator
 from .logging_setup import get_logger
+from .config import settings
+from .harvester.aggregator import HarvesterAggregator
 from sqlmodel import select
 
 
 log = get_logger(__name__)
 
-
-import asyncio
 
 @celery_app.task(name="bounty_command_center.tasks.scan_target")
 def scan_target(target_id: int):
@@ -76,3 +81,45 @@ def rescan_all_targets():
             scan_target.delay(target.id)
 
         log.info("Queued daily rescans for %d targets.", len(targets))
+
+
+@celery_app.task(name="bounty_command_center.tasks.harvest_bounty_programs")
+def harvest_bounty_programs():
+    """
+    Celery task to run all bug bounty program harvesters, with Redis locks
+    to prevent concurrent runs for the same platform.
+    """
+    log.info("Starting bug bounty program harvesting run...")
+
+    try:
+        redis_client = redis.from_url(settings.celery.broker_url)
+    except Exception as e:
+        log.error("Failed to connect to Redis for locking", error=str(e))
+        return
+
+    with next(get_session()) as session:
+        aggregator = HarvesterAggregator(db_session=session)
+
+        if not aggregator._harvesters:
+            log.warning("No harvesters registered. Exiting.")
+            return
+
+        async def run_all_with_locks():
+            async with httpx.AsyncClient() as client:
+                for harvester in aggregator._harvesters:
+                    lock_key = f"lock:harvest:{harvester.platform_name}"
+                    log.info("Attempting to acquire lock", key=lock_key)
+
+                    lock = RedisLock(redis_client, lock_key)
+                    if lock.acquire(blocking=False):
+                        log.info("Lock acquired", key=lock_key)
+                        try:
+                            await aggregator.run_harvester(harvester, client)
+                        finally:
+                            log.info("Releasing lock", key=lock_key)
+                            lock.release()
+                    else:
+                        log.info("Could not acquire lock, task may be running.", key=lock_key)
+
+        asyncio.run(run_all_with_locks())
+    log.info("Bug bounty program harvesting run finished.")

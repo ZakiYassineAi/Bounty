@@ -1,12 +1,17 @@
 import logging
 import sys
+import os
 import structlog
 
-def setup_logging(log_to_file: bool = False):
+def setup_logging(log_level: str = "INFO"):
     """
     Configures structlog for structured logging.
-    Logs to console by default, or to 'app.log' if log_to_file is True.
+    The output format is controlled by the LOG_FORMAT environment variable.
+    - 'console': (Default) Human-readable, colored output for development.
+    - 'json':    Machine-readable JSON output for production.
     """
+    log_format = os.getenv("LOG_FORMAT", "console").lower()
+
     shared_processors = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
@@ -20,16 +25,16 @@ def setup_logging(log_to_file: bool = False):
     # Configure the standard logging library to be a sink for structlog
     logging.basicConfig(
         format="%(message)s",
-        level=logging.INFO,
-        handlers=[logging.NullHandler()],  # Don't want basicConfig to set up any handlers
+        level=log_level.upper(),
+        handlers=[logging.NullHandler()],
     )
 
-    if log_to_file:
-        # Log to a file in JSON format
-        handler = logging.FileHandler("app.log", mode='w')
+    if log_format == "json":
+        # Production-ready JSON logs to stdout
+        handler = logging.StreamHandler(sys.stdout)
         renderer = structlog.processors.JSONRenderer()
     else:
-        # Log to the console with colors
+        # Development-friendly console logs
         handler = logging.StreamHandler(sys.stdout)
         renderer = structlog.dev.ConsoleRenderer(colors=True)
 
@@ -52,7 +57,7 @@ def setup_logging(log_to_file: bool = False):
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(log_level.upper())
 
 def get_logger(name: str):
     """

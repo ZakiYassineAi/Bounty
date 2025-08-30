@@ -1,0 +1,44 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Host:
+      - bugcrowd.com
+      User-Agent:
+      - python-httpx/0.25.0
+    method: GET
+    uri: https://bugcrowd.com/programs
+  response:
+    body:
+      string: |
+        <!DOCTYPE html>
+        <html>
+        <body>
+          <div class="bc-program-card">
+            <a class="bc-program-card__link" href="/example-program">
+              <h4 class="bc-program-card__name">  Example Program  </h4>
+            </a>
+            <span class="bc-program-card__payout">$100 - $5,000</span>
+          </div>
+          <div class="bc-program-card">
+            <a class="bc-program-card__link" href="/another-program">
+              <h4 class="bc-program-card__name">Another Program</h4>
+            </a>
+            <span class="bc-program-card__payout">$250 - $10,000</span>
+          </div>
+        </body>
+        </html>
+    headers:
+      Content-Type:
+      - text/html; charset=utf-8
+    status:
+      code: 200
+      message: OK
+    url: https://bugcrowd.com/programs
+version: 1

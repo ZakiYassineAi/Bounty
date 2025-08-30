@@ -19,5 +19,9 @@ celery_app.conf.update(
             "task": "bounty_command_center.tasks.rescan_all_targets",
             "schedule": 86400.0,  # Run every 24 hours (24 * 60 * 60)
         },
+        "harvest-programs-every-4-hours": {
+            "task": "bounty_command_center.tasks.harvest_bounty_programs",
+            "schedule": 14400.0,  # Run every 4 hours (4 * 60 * 60)
+        },
     },
 )
