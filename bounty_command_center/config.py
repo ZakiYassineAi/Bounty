@@ -33,12 +33,17 @@ class AuthConfig(BaseModel):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 30
 
+class CeleryConfig(BaseModel):
+    broker_url: str = "redis://localhost:6379/0"
+    result_backend: str = "redis://localhost:6379/0"
+
 class Settings(BaseModel):
     tools: ToolsConfig = ToolsConfig()
     api_keys: ApiKeysConfig = ApiKeysConfig()
     reporting: ReportingConfig = ReportingConfig()
     async_runner: AsyncRunnerConfig = AsyncRunnerConfig()
     auth: AuthConfig = AuthConfig()
+    celery: CeleryConfig = CeleryConfig()
 
 # --- Config Loading Logic ---
 

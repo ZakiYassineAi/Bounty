@@ -5,3 +5,5 @@ colorama
 PyYAML
 typer
 rich
+celery
+redis

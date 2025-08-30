@@ -6,6 +6,7 @@ from .. import schemas, target_manager
 from ..auth import role_checker
 from ..models import User
 from ..database import get_session
+from ..tasks import scan_target
 
 router = APIRouter(
     prefix="/targets",
@@ -32,6 +33,10 @@ def create_target(
     db_target = tm.add_target(db=db, name=target.name, url=target.url, scope=target.scope)
     if not db_target:
         raise HTTPException(status_code=400, detail="Target with this name already exists.")
+
+    # Asynchronously trigger a scan of the new target
+    scan_target.delay(db_target.id)
+
     return db_target
 
 @router.get("/", response_model=List[schemas.TargetRead])
