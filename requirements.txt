@@ -2,3 +2,6 @@ requests
 sqlmodel
 structlog
 colorama
+PyYAML
+typer
+rich

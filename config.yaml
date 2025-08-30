@@ -1,0 +1,30 @@
+# Default configuration for the Bounty Command Center
+
+# Configuration for external tools.
+# Add the full path to the executable for each tool you want to use.
+tools:
+  nmap:
+    path: /usr/bin/nmap
+  sqlmap:
+    path: /usr/bin/sqlmap
+  dirb:
+    path: /usr/bin/dirb
+
+# API keys for various services.
+# Replace "YOUR_API_KEY_HERE" with your actual keys.
+api_keys:
+  virustotal: "YOUR_API_KEY_HERE"
+  shodan: "YOUR_API_KEY_HERE"
+
+# Settings for report generation.
+reporting:
+  # The directory where Markdown reports will be saved.
+  export_directory: "reports"
+  # A template for the report filename.
+  # Placeholders: {target_name}, {evidence_id}, {timestamp}
+  filename_template: "{target_name}-{evidence_id}-{timestamp}.md"
+
+# Settings for the async runner.
+async_runner:
+  # Default timeout in seconds for commands.
+  default_timeout: 60
