@@ -8,3 +8,13 @@ rich
 celery
 redis
 psutil
+beautifulsoup4
+pytest
+fastapi
+httpx
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+markdown
+weasyprint
+markupsafe

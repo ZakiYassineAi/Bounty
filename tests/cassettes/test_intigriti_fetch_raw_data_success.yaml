@@ -1,0 +1,59 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate, br
+      Authorization:
+      - Bearer dummy_api_key
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.5
+    method: GET
+    uri: https://api.intigriti.com/external/company/v2.0/programs
+  response:
+    body:
+      string: '{"identifier":"dab39be4-2910-47c6-a652-a74048804d82","title":"Access
+        denied.","status":401,"code":"UNAUTH001","extraParameters":{}}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=86400
+      Cache-Control:
+      - no-cache, no-store, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 30 Aug 2025 22:29:43 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Transfer-Encoding:
+      - chunked
+      Via:
+      - 1.1 1c24aee52487b0940693b93c42adc29c.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - t1qGtnMsGqBjs1259gb782k4iJBFm0fOn_A2vPM_Ym0hxFQ2Qztzbw==
+      X-Amz-Cf-Pop:
+      - DEN52-P1
+      X-Cache:
+      - Error from cloudfront
+      server:
+      - Hidden
+      strict-transport-security:
+      - max-age=63072000; includeSubDomains; preload
+      vary:
+      - Origin
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - deny
+    status:
+      code: 401
+      message: Unauthorized
+version: 1

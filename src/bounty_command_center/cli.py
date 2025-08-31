@@ -216,6 +216,18 @@ def run_scan(target_name: str = typer.Argument(..., help="The name of the target
     asyncio.run(_run_scan_async(target_name))
 
 @app.command()
+def harvest(platform: str = typer.Argument(..., help="The platform to harvest (e.g., intigriti).")):
+    """Runs the harvester for a specific platform."""
+    from .harvester_aggregator import HarvesterAggregator
+    log = get_logger("harvest")
+    log.info("Starting harvester for platform", platform=platform)
+    console.print(f"Starting harvester for [bold magenta]{platform}[/bold magenta]...")
+    aggregator = HarvesterAggregator()
+    aggregator.run(platform)
+    console.print(f"[green]✔[/green] Harvester for {platform} finished.")
+
+
+@app.command()
 def migrate():
     """Runs the data migration utility to import data from old JSON files."""
     log = get_logger("migrate")
