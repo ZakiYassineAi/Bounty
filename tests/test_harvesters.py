@@ -1,47 +1,78 @@
 import pytest
-from bounty_command_center.harvesters.intigriti import IntigritiHarvester
+import vcr
+import requests
+import respx
+import httpx
+import json
+from unittest.mock import MagicMock
+from bounty_command_center.harvesters.intigriti import IntigritiHarvester, IntigritiClient
 from bounty_command_center.harvesters.yeswehack import YesWeHackHarvester
 from bounty_command_center.harvesters.openbugbounty import OpenBugBountyHarvester
 
-def test_intigriti_fetch_raw_data_success(mocker):
+@respx.mock
+def test_intigriti_fetch_raw_data_with_mock():
     """
-    Tests that fetch_raw_data returns the raw JSON string on success.
+    Tests the IntigritiHarvester using a respx mock.
+    This test does not require a network connection or a real API key.
     """
-    mock_response = mocker.Mock()
-    mock_response.status_code = 200
-    mock_response.text = '{"programs": []}'
-    mocker.patch('requests.get', return_value=mock_response)
+    # Arrange
+    api_url = "https://api.intigriti.com/external/company/v2.0/programs"
+    mock_response_data = [{"id": "p1", "name": "Alpha", "status": "active"}]
 
-    harvester = IntigritiHarvester(api_key="dummy_api_key")
-    raw_data = harvester.fetch_raw_data()
-    assert raw_data is not None
-    assert isinstance(raw_data, str)
-    assert raw_data == '{"programs": []}'
+    route = respx.get(api_url).mock(
+        return_value=httpx.Response(
+            200,
+            json=mock_response_data,
+            headers={"ETag": "new-etag", "Last-Modified": "a-new-date"}
+        )
+    )
 
-def test_intigriti_fetch_raw_data_no_api_key():
-    """
-    Tests that fetch_raw_data raises a ValueError if no API key is provided.
-    """
-    harvester = IntigritiHarvester(api_key=None)
-    with pytest.raises(ValueError):
-        harvester.fetch_raw_data()
+    # We inject a client that uses the mocked transport
+    fake_client = IntigritiClient(api_key_provider=lambda: "FAKE_KEY")
+    harvester = IntigritiHarvester(client=fake_client)
 
-@pytest.mark.vcr()
+    # Act
+    data, etag, last_modified = harvester.fetch_raw_data()
+
+    # Assert
+    assert route.called
+    assert json.loads(data) == mock_response_data
+    assert etag == "new-etag"
+    assert last_modified == "a-new-date"
+
+
+# We now use record_mode='once' (the default) since the cassettes are fresh.
+@vcr.use_cassette("tests/cassettes/public/test_yeswehack_fetch_raw_data_success.yaml")
 def test_yeswehack_fetch_raw_data_success():
     """
-    Tests that fetch_raw_data returns the raw HTML string on success.
+    Tests that the YesWeHackHarvester can successfully fetch and return raw data.
     """
     harvester = YesWeHackHarvester()
-    raw_data = harvester.fetch_raw_data()
-    assert raw_data is not None
-    assert isinstance(raw_data, str)
+    data, etag, last_modified = harvester.fetch_raw_data()
+    assert data is not None
+    assert "<title>" in data
 
-@pytest.mark.vcr()
+@vcr.use_cassette("tests/cassettes/public/test_openbugbounty_fetch_raw_data_success.yaml")
 def test_openbugbounty_fetch_raw_data_success():
     """
-    Tests that fetch_raw_data returns the raw HTML string on success.
+    Tests that the OpenBugBountyHarvester can successfully fetch and return raw data.
     """
     harvester = OpenBugBountyHarvester()
-    raw_data = harvester.fetch_raw_data()
-    assert raw_data is not None
-    assert isinstance(raw_data, str)
+    data, etag, last_modified = harvester.fetch_raw_data()
+    assert data is not None
+    assert "Bug Bounty Program List" in data
+
+def test_intigriti_handles_request_exception(mocker):
+    """
+    Tests that the IntigritiHarvester handles network errors gracefully.
+    """
+    # Mock the client's list_programs method directly
+    mock_client = MagicMock()
+    mock_client.list_programs.side_effect = httpx.RequestError("Network error")
+    harvester = IntigritiHarvester(client=mock_client)
+
+    data, etag, last_modified = harvester.fetch_raw_data()
+
+    assert data is None
+    assert etag is None
+    assert last_modified is None

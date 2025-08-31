@@ -8,6 +8,8 @@ celery_app = Celery(
     include=["bounty_command_center.tasks"],
 )
 
+from celery.schedules import crontab
+
 celery_app.conf.update(
     task_track_started=True,
     beat_schedule={
@@ -18,6 +20,10 @@ celery_app.conf.update(
         "rescan-all-targets-daily": {
             "task": "bounty_command_center.tasks.rescan_all_targets",
             "schedule": 86400.0,  # Run every 24 hours (24 * 60 * 60)
+        },
+        "harvest-all-platforms-every-6-hours": {
+            "task": "bounty_command_center.tasks.schedule_all_platform_harvests",
+            "schedule": crontab(minute=0, hour='*/6'),
         },
     },
 )

@@ -39,6 +39,8 @@ class ProgramRaw(SQLModel, table=True):
     platform: str = Field(index=True)
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     data: str  # Storing as a string, could be JSON or HTML
+    etag: Optional[str] = Field(default=None)
+    last_modified: Optional[str] = Field(default=None)
 
 class ProgramClean(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -52,3 +54,10 @@ class ProgramClean(SQLModel, table=True):
     status: str = Field(default="public", index=True)
     last_updated: Optional[datetime] = Field(default=None)
     acceptance_rate: Optional[float] = Field(default=None)
+
+class ProgramInvalid(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    platform: str = Field(index=True)
+    raw_data: str
+    error_message: str
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

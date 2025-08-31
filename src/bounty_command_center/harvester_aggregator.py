@@ -1,9 +1,10 @@
+import asyncio
 import redis
-from sqlmodel import Session
+from sqlmodel import Session, select
 from .harvesters.intigriti import IntigritiHarvester
 from .harvesters.yeswehack import YesWeHackHarvester
 from .harvesters.openbugbounty import OpenBugBountyHarvester
-from .database import engine
+from .harvesters.synack import SynackHarvester
 from .models import ProgramRaw
 
 class HarvesterAggregator:
@@ -24,40 +25,59 @@ class HarvesterAggregator:
         self.lock_key = "harvester_aggregator_lock"
         self.lock_timeout = 60  # Lock timeout in seconds
 
-    def run(self, platform):
+    def run(self, db: Session, platform: str):
         """
         Runs the harvester for the specified platform and stores the raw data.
 
         Args:
+            db (Session): The database session to use.
             platform (str): The name of the platform to harvest.
         """
-        lock = self.redis_client.lock(self.lock_key, timeout=self.lock_timeout)
+        lock = self.redis_client.lock(f"harvester_lock_{platform}", timeout=self.lock_timeout)
         if not lock.acquire(blocking=False):
-            print("Could not acquire lock. Another instance may be running.")
+            print(f"Could not acquire lock for {platform}. Another instance may be running.")
             return
 
         try:
             print(f"Acquired lock. Running {platform} harvester...")
+            latest_raw = db.exec(
+                select(ProgramRaw)
+                .where(ProgramRaw.platform == platform)
+                .order_by(ProgramRaw.fetched_at.desc())
+            ).first()
+
+            etag = latest_raw.etag if latest_raw else None
+            last_modified = latest_raw.last_modified if latest_raw else None
+
             if platform == 'intigriti':
                 harvester = IntigritiHarvester()
+                raw_data, new_etag, new_last_modified = harvester.fetch_raw_data(etag, last_modified)
             elif platform == 'yeswehack':
                 harvester = YesWeHackHarvester()
+                raw_data, new_etag, new_last_modified = harvester.fetch_raw_data(etag, last_modified)
             elif platform == 'openbugbounty':
                 harvester = OpenBugBountyHarvester()
+                raw_data, new_etag, new_last_modified = harvester.fetch_raw_data(etag, last_modified)
+            elif platform == 'synack':
+                harvester = SynackHarvester()
+                raw_data, new_etag, new_last_modified = asyncio.run(harvester.fetch_raw_data(etag, last_modified))
             else:
                 print(f"Unknown platform: {platform}")
                 return
 
-            raw_data = harvester.fetch_raw_data()
             if raw_data:
-                print(f"Fetched raw data from {platform}.")
-                with Session(engine) as db:
-                    program_raw = ProgramRaw(platform=platform, data=raw_data)
-                    db.add(program_raw)
-                    db.commit()
-                print("Successfully saved raw data to the database.")
+                print(f"Fetched new raw data from {platform}.")
+                program_raw = ProgramRaw(
+                    platform=platform,
+                    data=raw_data,
+                    etag=new_etag,
+                    last_modified=new_last_modified,
+                )
+                db.add(program_raw)
+                db.commit()
+                print("Successfully saved new raw data to the database.")
             else:
-                print(f"Failed to fetch raw data from {platform}.")
+                print(f"No new data from {platform}.")
         finally:
             lock.release()
             print("Released lock.")

@@ -1,145 +1,258 @@
 import json
+from typing import List, Optional, Tuple
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, HttpUrl, ValidationError
 from sqlmodel import Session, select
-from .models import ProgramRaw, ProgramClean
+from .models import ProgramRaw, ProgramClean, ProgramInvalid
+
+# Pydantic schemas for validation
+class IntigritiProgramSchema(BaseModel):
+    name: str
+    url: HttpUrl
+    status: str
+    max_bounty: float
+    min_bounty: float
+    company_handle: str
+
+class YesWeHackProgramSchema(BaseModel):
+    title: str
+    slug: str
+    bounty_reward_min: Optional[float]
+    bounty_reward_max: Optional[float]
+    disabled: bool
+
+class SynackProgramSchema(BaseModel):
+    name: str
+    url: HttpUrl
 
 class NormalizationService:
     """
     A service for normalizing raw program data from various platforms.
     """
 
-    def run(self, db: Session):
+    def run(self, db: Session, platform: Optional[str] = None) -> dict:
         """
-        Runs the normalization process for all platforms.
+        Runs the normalization process.
+
+        Args:
+            db (Session): The database session.
+            platform (str, optional): If provided, only normalizes data for this platform.
+
+        Returns:
+            A dictionary containing statistics about the run.
         """
-        raw_programs = db.exec(select(ProgramRaw)).all()
+        stats = {'new': 0, 'invalid': 0, 'updated': 0} # 'updated' is a placeholder for now
+
+        query = select(ProgramRaw)
+        if platform:
+            query = query.where(ProgramRaw.platform == platform)
+
+        raw_programs = db.exec(query).all()
+
         for raw_program in raw_programs:
-            if raw_program.platform == "intigriti":
-                self._normalize_intigriti(db, raw_program)
-            elif raw_program.platform == "yeswehack":
-                self._normalize_yeswehack(db, raw_program)
-            elif raw_program.platform == "openbugbounty":
-                self._normalize_openbugbounty(db, raw_program)
+            handler = getattr(self, f"_normalize_{raw_program.platform.lower()}", None)
+            if handler:
+                new, invalid = handler(db, raw_program)
+                stats['new'] += new
+                stats['invalid'] += invalid
             else:
-                print(f"Unknown platform: {raw_program.platform}")
+                print(f"Normalization not implemented for platform: {raw_program.platform}")
 
-    def _normalize_intigriti(self, db: Session, raw_program: ProgramRaw):
+        return stats
+
+    def _normalize_synack(self, db: Session, raw_program: ProgramRaw) -> Tuple[int, int]:
         """
-        Normalizes raw data from Intigriti.
+        Normalizes raw data from Synack using a Pydantic schema.
+        Returns a tuple of (new_count, invalid_count).
         """
+        new_count, invalid_count = 0, 0
         try:
-            data = json.loads(raw_program.data)
-            for program_data in data:
-                url = program_data.get("url")
-                if not url:
-                    continue
+            programs_data = json.loads(raw_program.data)
+            for program_data in programs_data:
+                try:
+                    validated_program = SynackProgramSchema.model_validate(program_data)
 
-                # Check for duplicates
-                existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == url)).first()
-                if existing_program:
-                    continue
+                    existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == str(validated_program.url))).first()
+                    if existing_program:
+                        continue
 
-                program = ProgramClean(
-                    name=program_data.get("name"),
-                    url=url,
-                    platform="intigriti",
-                    # The following fields are placeholders and need to be extracted from the actual data
-                    scope=[],
-                    vulnerability_types=[],
-                    min_bounty=None,
-                    max_bounty=None,
-                    status="public",
-                    last_updated=None,
-                    acceptance_rate=None,
-                )
-                db.add(program)
+                    program = ProgramClean(
+                        name=validated_program.name,
+                        url=str(validated_program.url),
+                        platform="Synack",
+                        scope=[],
+                        vulnerability_types=[],
+                    )
+                    db.add(program)
+                    new_count += 1
+                except ValidationError as e:
+                    invalid_program = ProgramInvalid(
+                        platform="Synack",
+                        raw_data=json.dumps(program_data),
+                        error_message=e.json(),
+                    )
+                    db.add(invalid_program)
+                    invalid_count += 1
             db.commit()
         except json.JSONDecodeError:
-            print(f"Error decoding JSON for raw program {raw_program.id}")
+            invalid_program = ProgramInvalid(
+                platform="Synack",
+                raw_data=raw_program.data,
+                error_message="Invalid JSON format in raw data.",
+            )
+            db.add(invalid_program)
+            invalid_count += 1
+            db.commit()
+        return new_count, invalid_count
 
-    def _normalize_yeswehack(self, db: Session, raw_program: ProgramRaw):
+    def _normalize_intigriti(self, db: Session, raw_program: ProgramRaw) -> Tuple[int, int]:
         """
-        Normalizes raw data from YesWeHack.
+        Normalizes raw data from Intigriti using a Pydantic schema for validation.
+        Returns a tuple of (new_count, invalid_count).
         """
+        new_count, invalid_count = 0, 0
+        try:
+            programs_data = json.loads(raw_program.data)
+            for program_data in programs_data:
+                try:
+                    validated_program = IntigritiProgramSchema.model_validate(program_data)
+
+                    url_str = str(validated_program.url)
+                    existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == url_str)).first()
+                    if existing_program:
+                        continue
+
+                    program = ProgramClean(
+                        name=validated_program.name,
+                        url=url_str,
+                        platform="intigriti",
+                        status=validated_program.status,
+                        min_bounty=validated_program.min_bounty,
+                        max_bounty=validated_program.max_bounty,
+                        scope=[],
+                        vulnerability_types=[],
+                    )
+                    db.add(program)
+                    new_count += 1
+                except ValidationError as e:
+                    invalid_program = ProgramInvalid(
+                        platform="intigriti",
+                        raw_data=json.dumps(program_data),
+                        error_message=e.json(),
+                    )
+                    db.add(invalid_program)
+                    invalid_count += 1
+            db.commit()
+        except json.JSONDecodeError:
+            invalid_program = ProgramInvalid(
+                platform="intigriti",
+                raw_data=raw_program.data,
+                error_message="Invalid JSON format in raw data.",
+            )
+            db.add(invalid_program)
+            invalid_count += 1
+            db.commit()
+        return new_count, invalid_count
+
+    def _normalize_yeswehack(self, db: Session, raw_program: ProgramRaw) -> Tuple[int, int]:
+        """
+        Normalizes raw data from YesWeHack using a Pydantic schema for validation.
+        Returns a tuple of (new_count, invalid_count).
+        """
+        new_count, invalid_count = 0, 0
         soup = BeautifulSoup(raw_program.data, 'html.parser')
         script_tag = soup.find('script', {'id': 'ng-state'})
         if not script_tag or not hasattr(script_tag, 'string'):
-            print(f"Could not find ng-state script tag or its content for raw program {raw_program.id}")
-            return
+            invalid_program = ProgramInvalid(
+                platform="yeswehack", raw_data=raw_program.data,
+                error_message="Could not find ng-state script tag in HTML."
+            )
+            db.add(invalid_program)
+            db.commit()
+            return 0, 1
 
         try:
             json_data = json.loads(script_tag.string)
             programs_data = []
             for key, value in json_data.items():
-                if key.startswith('getPrograms-'):
-                    programs_data = value['data']['items']
+                if key.startswith('getPrograms-') and isinstance(value, dict):
+                    programs_data = value.get('data', {}).get('items', [])
                     break
 
+            if not programs_data:
+                raise KeyError("Could not find programs data in the ng-state JSON.")
+
             for program_data in programs_data:
-                url = f"https://yeswehack.com/programs/{program_data.get('slug')}"
-                if not url:
-                    continue
+                try:
+                    validated_program = YesWeHackProgramSchema.model_validate(program_data)
+                    url = f"https://yeswehack.com/programs/{validated_program.slug}"
+                    if db.exec(select(ProgramClean).where(ProgramClean.url == url)).first():
+                        continue
 
-                # Check for duplicates
-                existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == url)).first()
-                if existing_program:
-                    continue
-
-                program = ProgramClean(
-                    name=program_data.get("title"),
-                    url=url,
-                    platform="yeswehack",
-                    scope=[],
-                    vulnerability_types=[],
-                    min_bounty=program_data.get("bounty_reward_min"),
-                    max_bounty=program_data.get("bounty_reward_max"),
-                    status="public",
-                    last_updated=None, # This needs parsing from the 'last_update_at' field
-                    acceptance_rate=None,
-                )
-                db.add(program)
+                    program = ProgramClean(
+                        name=validated_program.title, url=url, platform="yeswehack",
+                        min_bounty=validated_program.bounty_reward_min,
+                        max_bounty=validated_program.bounty_reward_max,
+                        status="enabled" if not validated_program.disabled else "disabled",
+                        scope=[], vulnerability_types=[]
+                    )
+                    db.add(program)
+                    new_count += 1
+                except ValidationError as e:
+                    invalid_program = ProgramInvalid(
+                        platform="yeswehack", raw_data=json.dumps(program_data), error_message=e.json()
+                    )
+                    db.add(invalid_program)
+                    invalid_count += 1
             db.commit()
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"Error parsing JSON for raw program {raw_program.id}: {e}")
+            invalid_program = ProgramInvalid(
+                platform="yeswehack", raw_data=raw_program.data,
+                error_message=f"Error parsing ng-state JSON: {e}"
+            )
+            db.add(invalid_program)
+            invalid_count += 1
+            db.commit()
+        return new_count, invalid_count
 
-    def _normalize_openbugbounty(self, db: Session, raw_program: ProgramRaw):
+    def _normalize_openbugbounty(self, db: Session, raw_program: ProgramRaw) -> Tuple[int, int]:
         """
         Normalizes raw data from Open Bug Bounty.
+        Returns a tuple of (new_count, invalid_count).
         """
+        new_count, invalid_count = 0, 0
         soup = BeautifulSoup(raw_program.data, 'html.parser')
 
-        # This is a guess based on the HTML structure from view_text_website
-        # It might need to be adjusted.
         program_rows = soup.select('div.bugbounty-list__item')
 
         for row in program_rows:
             try:
                 name_element = row.select_one('a')
-                if name_element:
+                if name_element and name_element.has_attr('href'):
                     name = name_element.text.strip()
                     url = f"https://www.openbugbounty.org{name_element['href']}"
                 else:
-                    continue
+                    raise ValueError("Could not find program name and url in row")
 
-                # Check for duplicates
-                existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == url)).first()
-                if existing_program:
+                if not name or not url:
+                    raise ValueError("Missing name or url")
+
+                if db.exec(select(ProgramClean).where(ProgramClean.url == url)).first():
                     continue
 
                 program = ProgramClean(
-                    name=name,
-                    url=url,
-                    platform="openbugbounty",
-                    scope=[],
-                    vulnerability_types=[],
-                    min_bounty=None,
-                    max_bounty=None,
-                    status="public",
-                    last_updated=None,
-                    acceptance_rate=None,
+                    name=name, url=url, platform="openbugbounty",
+                    scope=[], vulnerability_types=[]
                 )
                 db.add(program)
-            except (AttributeError, KeyError) as e:
-                print(f"Error parsing Open Bug Bounty row: {e}")
+                new_count += 1
+            except Exception as e:
+                invalid_program = ProgramInvalid(
+                    platform="openbugbounty", raw_data=str(row),
+                    error_message=f"Error parsing row: {e}"
+                )
+                db.add(invalid_program)
+                invalid_count += 1
                 continue
         db.commit()
+        return new_count, invalid_count

@@ -1,3 +1,6 @@
+# VCR Cassettes
+tests/cassettes/private/
+
 # Python cache
 __pycache__/
 *.pyc
