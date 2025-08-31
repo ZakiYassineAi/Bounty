@@ -2,6 +2,30 @@
 
 This project is a framework to help you manage your bug bounty hunting activities. It is a real tool designed to organize your workflow, not an automated bot.
 
+## Development Setup
+
+This project uses Poetry for dependency management and Alembic for database migrations.
+
+1.  **Install Dependencies:**
+    ```bash
+    poetry install
+    ```
+
+2.  **Set up the Database:**
+    The first time you set up the project, and any time there are new database schema changes, you need to run the migrations:
+    ```bash
+    PYTHONPATH=src poetry run alembic upgrade head
+    ```
+
+3.  **Creating New Migrations:**
+    After you change a `SQLModel` model in `src/bounty_command_center/models.py`, you must create a new migration script:
+    ```bash
+    PYTHONPATH=src poetry run alembic revision --autogenerate -m "A descriptive message for your change"
+    ```
+    Then, apply the new migration as described in step 2.
+
+---
+
 ## How to Run the Code in Google Colab
 
 You can run this interactive command-line application in a Google Colab notebook by following these steps:

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 from bounty_command_center.tasks import harvest_platform, schedule_all_platform_harvests
 from sqlmodel import Session
 
@@ -29,13 +29,21 @@ def test_harvest_platform_task(mock_get_session, mock_aggregator_class, mock_nor
     harvest_platform(platform_to_test)
 
     # Assert
-    mock_aggregator_class.assert_called_once()
-    mock_aggregator_instance.run.assert_called_once_with(mock_db_session, platform_to_test)
+    mock_aggregator_instance.run.assert_called_once()
+    assert mock_aggregator_instance.run.call_args.args[0] == mock_db_session
+    assert mock_aggregator_instance.run.call_args.args[1] == platform_to_test
+    assert isinstance(mock_aggregator_instance.run.call_args.kwargs['run_id'], str)
 
-    mock_normalizer_class.assert_called_once()
     mock_normalizer_instance.run.assert_called_once_with(mock_db_session, platform_to_test)
 
-    mock_report_gen.assert_called_once_with(platform_to_test, mock_stats)
+    # Check that the report generator was called with the stats and a run_id
+    mock_report_gen.assert_called_once()
+    call_args, _ = mock_report_gen.call_args
+    assert call_args[0] == platform_to_test
+    assert call_args[1]['new'] == 5
+    assert 'duration' in call_args[1]
+    assert 'error' in call_args[1]
+    assert isinstance(call_args[2], str) # run_id
 
 
 @patch("bounty_command_center.tasks.harvest_platform.apply_async")

@@ -35,6 +35,7 @@ ruff = "^0.12.11"
 mypy = "^1.17.1"
 requests-mock = "^1.12.1"
 playwright = "^1.55.0"
+alembic = "^1.16.5"
 
 
 [tool.poetry.group.dev.dependencies]

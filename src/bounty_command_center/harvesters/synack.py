@@ -53,12 +53,35 @@ class SynackHarvester(BaseHarvester):
                         print("Authentication state is invalid or missing. Manual login required.")
                         print(f"Please complete the login process in the browser window.")
 
-                        try:
-                            await page.wait_for_url(f"{POST_LOGIN_URL_IDENTIFIER}/**", timeout=300000)
+                        # Wait for either successful login navigation or a CAPTCHA to appear
+                        login_success_task = asyncio.create_task(
+                            page.wait_for_url(f"{POST_LOGIN_URL_IDENTIFIER}/**", timeout=300000)
+                        )
+                        # This selector is a guess and should be replaced with a real one for Synack's CAPTCHA
+                        captcha_selector = "*[data-qa=captcha], #captcha-container, .cf-turnstile"
+                        captcha_task = asyncio.create_task(
+                            page.wait_for_selector(captcha_selector, state="visible", timeout=300000)
+                        )
+
+                        done, pending = await asyncio.wait(
+                            [login_success_task, captcha_task],
+                            return_when=asyncio.FIRST_COMPLETED
+                        )
+
+                        for task in pending:
+                            task.cancel()
+
+                        if captcha_task in done:
+                            print("CAPTCHA detected. Automated login cannot proceed.")
+                            await browser.close()
+                            return None, None, None
+
+                        if login_success_task in done:
                             print("Login successful. Saving authentication state.")
                             await context.storage_state(path=self.AUTH_FILE)
-                        except Exception as e:
-                            print(f"Failed to detect successful login within the time limit: {e}")
+                        else:
+                            # This case should not be reached if timeouts are the same
+                            print("Login detection failed for an unknown reason.")
                             await browser.close()
                             return None, None, None
 

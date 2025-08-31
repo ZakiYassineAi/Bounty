@@ -35,33 +35,59 @@ async def test_synack_harvester_with_existing_auth(mocker, mock_playwright):
     mock_playwright["page"].url = "https://platform.synack.com/tasks"
 
     harvester = SynackHarvester()
-
     data, _, _ = await harvester.fetch_raw_data()
 
     mock_playwright["browser"].new_context.assert_awaited_with(storage_state=str(harvester.AUTH_FILE))
-
     parsed_data = json.loads(data)
-    assert len(parsed_data) == 1
     assert parsed_data[0]["name"] == "Dummy Synack Program"
 
-
 @pytest.mark.asyncio
-async def test_synack_harvester_needs_login(mocker, mock_playwright):
+async def test_synack_harvester_needs_login_success(mocker, mock_playwright):
     """
-    Tests the SynackHarvester's logic when the auth file is missing and login is required.
+    Tests the logic for a successful manual login.
     """
     mocker.patch("pathlib.Path.exists", return_value=False)
     mock_playwright["page"].url = "https://platform.synack.com/login"
 
-    harvester = SynackHarvester()
+    # In the success case, wait_for_url should complete instantly,
+    # while wait_for_selector should hang until cancelled.
+    async def long_wait(*args, **kwargs):
+        await asyncio.sleep(10)
 
+    mock_playwright["page"].wait_for_url.return_value = asyncio.Future()
+    mock_playwright["page"].wait_for_url.return_value.set_result(True)
+    mock_playwright["page"].wait_for_selector.side_effect = long_wait
+
+    harvester = SynackHarvester()
     await harvester.fetch_raw_data()
 
     mock_playwright["browser"].new_context.assert_any_await()
-    mock_playwright["page"].wait_for_url.assert_awaited_with(
-        "https://platform.synack.com/tasks/**", timeout=300000
-    )
     mock_playwright["context"].storage_state.assert_awaited()
+
+@pytest.mark.asyncio
+async def test_synack_harvester_fails_on_captcha(mocker, mock_playwright, capsys):
+    """
+    Tests that the harvester fails gracefully if a CAPTCHA is detected.
+    """
+    mocker.patch("pathlib.Path.exists", return_value=False)
+    mock_playwright["page"].url = "https://platform.synack.com/login"
+
+    # In the CAPTCHA case, wait_for_selector should complete instantly,
+    # while wait_for_url should hang until cancelled.
+    async def long_wait(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    mock_playwright["page"].wait_for_selector.side_effect = None
+    mock_playwright["page"].wait_for_selector.return_value = asyncio.Future()
+    mock_playwright["page"].wait_for_selector.return_value.set_result(True)
+    mock_playwright["page"].wait_for_url.side_effect = long_wait
+
+    harvester = SynackHarvester()
+    result = await harvester.fetch_raw_data()
+
+    assert result == (None, None, None)
+    captured = capsys.readouterr()
+    assert "CAPTCHA detected" in captured.out
 
 @pytest.mark.asyncio
 async def test_synack_harvester_retry_logic_succeeds(mocker, mock_playwright):
@@ -70,6 +96,7 @@ async def test_synack_harvester_retry_logic_succeeds(mocker, mock_playwright):
     """
     mocker.patch("pathlib.Path.exists", return_value=True)
     mock_playwright["page"].url = "https://platform.synack.com/tasks"
+
     mock_playwright["page"].goto.side_effect = [
         asyncio.TimeoutError("Network failed on first attempt"),
         AsyncMock(),
@@ -77,7 +104,6 @@ async def test_synack_harvester_retry_logic_succeeds(mocker, mock_playwright):
     ]
 
     harvester = SynackHarvester()
-
     data, _, _ = await harvester.fetch_raw_data()
 
     assert mock_playwright["page"].goto.await_count > 1

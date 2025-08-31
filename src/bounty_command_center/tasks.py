@@ -1,5 +1,6 @@
 import asyncio
 import random
+import uuid
 from .celery_app import celery_app
 from .database import get_session
 from .models import Target
@@ -58,21 +59,36 @@ def scan_new_targets():
 
         log.info("Queued scans for %d new targets.", len(new_targets))
 
+import time
+
 @celery_app.task(name="bounty_command_center.tasks.harvest_platform")
 def harvest_platform(platform: str):
     """
     Runs the harvester for a single specified platform, normalizes the data,
     and generates a summary report.
     """
-    log.info("Running full harvest and report for platform: %s", platform)
+    run_id = str(uuid.uuid4())
+    log.info("Running full harvest and report for platform: %s", platform, extra={"run_id": run_id})
+    start_time = time.time()
+    stats = {}
+    error_info = None
 
-    harvester_aggregator = HarvesterAggregator()
-    normalization_service = NormalizationService()
+    try:
+        harvester_aggregator = HarvesterAggregator()
+        normalization_service = NormalizationService()
 
-    with get_session() as db:
-        harvester_aggregator.run(db, platform)
-        stats = normalization_service.run(db, platform)
-        generate_run_report(platform, stats)
+        with get_session() as db:
+            harvester_aggregator.run(db, platform, run_id=run_id)
+            stats = normalization_service.run(db, platform)
+    except Exception as e:
+        log.exception("An unexpected error occurred during harvest task", platform=platform, run_id=run_id)
+        error_info = str(e)
+    finally:
+        end_time = time.time()
+        duration = end_time - start_time
+        stats['duration'] = f"{duration:.2f} seconds"
+        stats['error'] = error_info
+        generate_run_report(platform, stats, run_id)
 
 @celery_app.task(name="bounty_command_center.tasks.schedule_all_platform_harvests")
 def schedule_all_platform_harvests():

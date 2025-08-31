@@ -25,21 +25,22 @@ class HarvesterAggregator:
         self.lock_key = "harvester_aggregator_lock"
         self.lock_timeout = 60  # Lock timeout in seconds
 
-    def run(self, db: Session, platform: str):
+    def run(self, db: Session, platform: str, run_id: str):
         """
         Runs the harvester for the specified platform and stores the raw data.
 
         Args:
             db (Session): The database session to use.
             platform (str): The name of the platform to harvest.
+            run_id (str): A unique ID for this run, for tracing.
         """
         lock = self.redis_client.lock(f"harvester_lock_{platform}", timeout=self.lock_timeout)
         if not lock.acquire(blocking=False):
-            print(f"Could not acquire lock for {platform}. Another instance may be running.")
+            print(f"Could not acquire lock for {platform}. Another instance may be running. run_id={run_id}")
             return
 
         try:
-            print(f"Acquired lock. Running {platform} harvester...")
+            print(f"Acquired lock. Running {platform} harvester... run_id={run_id}")
             latest_raw = db.exec(
                 select(ProgramRaw)
                 .where(ProgramRaw.platform == platform)

@@ -4,6 +4,16 @@ from sqlmodel import Session, select
 from bounty_command_center.models import ProgramRaw
 from bounty_command_center.harvester_aggregator import HarvesterAggregator
 
+@pytest.fixture(autouse=True)
+def mock_redis(mocker):
+    """Auto-mock redis for all tests in this module."""
+    mock_redis_client = MagicMock()
+    mock_lock = MagicMock()
+    mock_lock.acquire.return_value = True
+    mock_redis_client.lock.return_value = mock_lock
+    mocker.patch("redis.StrictRedis", return_value=mock_redis_client)
+    return mock_redis_client
+
 def test_aggregator_runs_harvester_and_saves_data(db_session: Session, mocker):
     """
     Tests that the HarvesterAggregator can run a mocked harvester
@@ -22,7 +32,7 @@ def test_aggregator_runs_harvester_and_saves_data(db_session: Session, mocker):
     aggregator = HarvesterAggregator()
 
     # Act
-    aggregator.run(db_session, platform_to_test)
+    aggregator.run(db_session, platform_to_test, run_id="test-run-123")
 
     # Assert
     mock_harvester_instance.fetch_raw_data.assert_called_once()
@@ -45,7 +55,7 @@ def test_aggregator_skips_if_lock_is_held(db_session: Session, mocker, capsys):
     aggregator = HarvesterAggregator()
 
     # Act
-    aggregator.run(db_session, "intigriti")
+    aggregator.run(db_session, "intigriti", run_id="test-run-123")
 
     # Assert
     mock_harvester_class.assert_not_called()
@@ -60,12 +70,11 @@ def test_aggregator_handles_unknown_platform(db_session: Session, mocker, capsys
     aggregator = HarvesterAggregator()
 
     # Act
-    aggregator.run(db_session, "unknown_platform")
+    aggregator.run(db_session, "unknown_platform", run_id="test-run-123")
 
     # Assert
     captured = capsys.readouterr()
     assert "Unknown platform: unknown_platform" in captured.out
-    # Ensure no data was written to the db
     programs = db_session.exec(select(ProgramRaw)).all()
     assert len(programs) == 0
 
@@ -75,7 +84,6 @@ def test_aggregator_handles_no_new_data(db_session: Session, mocker):
     """
     # Arrange
     mock_harvester_instance = MagicMock()
-    # Simulate the harvester finding no new data
     mock_harvester_instance.fetch_raw_data.return_value = (None, None, None)
     mocker.patch(
         "bounty_command_center.harvester_aggregator.IntigritiHarvester",
@@ -84,10 +92,9 @@ def test_aggregator_handles_no_new_data(db_session: Session, mocker):
     aggregator = HarvesterAggregator()
 
     # Act
-    aggregator.run(db_session, "intigriti")
+    aggregator.run(db_session, "intigriti", run_id="test-run-123")
 
     # Assert
     mock_harvester_instance.fetch_raw_data.assert_called_once()
-    # Ensure no data was written to the db
     programs = db_session.exec(select(ProgramRaw)).all()
     assert len(programs) == 0
