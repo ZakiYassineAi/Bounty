@@ -1,6 +1,7 @@
+import asyncio
 from .celery_app import celery_app
 from .database import get_session
-from .models import Target, Evidence
+from .models import Target
 from .tool_integrator import ToolIntegrator
 from .logging_setup import get_logger
 from sqlmodel import select
@@ -8,8 +9,6 @@ from sqlmodel import select
 
 log = get_logger(__name__)
 
-
-import asyncio
 
 @celery_app.task(name="bounty_command_center.tasks.scan_target")
 def scan_target(target_id: int):

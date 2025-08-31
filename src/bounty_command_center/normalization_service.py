@@ -1,7 +1,6 @@
 import json
 from bs4 import BeautifulSoup
 from sqlmodel import Session, select
-from .database import engine
 from .models import ProgramRaw, ProgramClean
 
 class NormalizationService:
@@ -64,8 +63,8 @@ class NormalizationService:
         """
         soup = BeautifulSoup(raw_program.data, 'html.parser')
         script_tag = soup.find('script', {'id': 'ng-state'})
-        if not script_tag:
-            print(f"Could not find ng-state script tag for raw program {raw_program.id}")
+        if not script_tag or not hasattr(script_tag, 'string'):
+            print(f"Could not find ng-state script tag or its content for raw program {raw_program.id}")
             return
 
         try:
@@ -116,8 +115,11 @@ class NormalizationService:
         for row in program_rows:
             try:
                 name_element = row.select_one('a')
-                name = name_element.text.strip()
-                url = f"https://www.openbugbounty.org{name_element['href']}"
+                if name_element:
+                    name = name_element.text.strip()
+                    url = f"https://www.openbugbounty.org{name_element['href']}"
+                else:
+                    continue
 
                 # Check for duplicates
                 existing_program = db.exec(select(ProgramClean).where(ProgramClean.url == url)).first()

@@ -18,3 +18,10 @@ python-multipart
 markdown
 weasyprint
 markupsafe
+uvicorn
+types-requests
+types-PyYAML
+types-psutil
+types-Markdown
+types-python-jose
+types-passlib

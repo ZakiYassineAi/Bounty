@@ -1,6 +1,4 @@
 import pytest
-from sqlmodel import Session, create_engine, SQLModel
-from bounty_command_center import models
 
 @pytest.fixture(scope="session")
 def anyio_backend():

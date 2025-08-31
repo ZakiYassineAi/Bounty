@@ -1,8 +1,6 @@
-import pytest
 from sqlmodel import Session, create_engine, select
 from bounty_command_center.models import ProgramRaw, ProgramClean, SQLModel
 from bounty_command_center.normalization_service import NormalizationService
-from bounty_command_center import models
 
 
 def test_normalize_intigriti():

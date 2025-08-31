@@ -1,0 +1,40 @@
+run_server.py:3: error: Cannot find implementation or library stub for module named "uvicorn"  [import-not-found]
+src/bounty_command_center/security.py:1: error: Library stubs not installed for "passlib.context"  [import-untyped]
+src/bounty_command_center/security.py:1: note: Hint: "python3 -m pip install types-passlib"
+src/bounty_command_center/harvesters/yeswehack.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+src/bounty_command_center/harvesters/openbugbounty.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+src/bounty_command_center/harvesters/intigriti.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+src/bounty_command_center/harvesters/intigriti.py:1: note: Hint: "python3 -m pip install types-requests"
+src/bounty_command_center/harvesters/intigriti.py:1: note: (or run "mypy --install-types" to install all missing stub packages)
+src/bounty_command_center/harvesters/intigriti.py:1: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+src/bounty_command_center/logging_setup.py:33: error: Incompatible types in assignment (expression has type "StreamHandler[TextIO | Any]", variable has type "FileHandler")  [assignment]
+src/bounty_command_center/logging_setup.py:34: error: Incompatible types in assignment (expression has type "ConsoleRenderer", variable has type "JSONRenderer")  [assignment]
+src/bounty_command_center/logging_setup.py:38: error: Argument "processors" to "configure" has incompatible type "list[object]"; expected "Iterable[Callable[[Any, str, MutableMapping[str, Any]], Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...]]] | None"  [arg-type]
+src/bounty_command_center/logging_setup.py:47: error: Argument "foreign_pre_chain" to "ProcessorFormatter" has incompatible type "list[object]"; expected "Sequence[Callable[[Any, str, MutableMapping[str, Any]], Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...]]] | None"  [arg-type]
+src/bounty_command_center/config.py:1: error: Library stubs not installed for "yaml"  [import-untyped]
+src/bounty_command_center/config.py:1: note: Hint: "python3 -m pip install types-PyYAML"
+src/bounty_command_center/async_runner.py:4: error: Library stubs not installed for "psutil"  [import-untyped]
+src/bounty_command_center/async_runner.py:4: note: Hint: "python3 -m pip install types-psutil"
+src/bounty_command_center/notification_manager.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+src/bounty_command_center/celery_app.py:1: error: Skipping analyzing "celery": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+src/bounty_command_center/target_manager.py:31: error: Incompatible return value type (got "Sequence[Target]", expected "list[Target]")  [return-value]
+src/bounty_command_center/report_generator.py:1: error: Library stubs not installed for "markdown"  [import-untyped]
+src/bounty_command_center/report_generator.py:1: note: Hint: "python3 -m pip install types-Markdown"
+src/bounty_command_center/report_generator.py:2: error: Skipping analyzing "weasyprint": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+src/bounty_command_center/report_generator.py:30: error: Argument 1 to "selectinload" has incompatible type "list[Evidence]"; expected "Literal['*'] | QueryableAttribute[Any]"  [arg-type]
+src/bounty_command_center/report_generator.py:81: error: Argument 1 to "selectinload" has incompatible type "Target | None"; expected "Literal['*'] | QueryableAttribute[Any]"  [arg-type]
+src/bounty_command_center/evidence_manager.py:55: error: Incompatible return value type (got "Sequence[Evidence]", expected "list[Evidence]")  [return-value]
+src/bounty_command_center/evidence_manager.py:95: error: Incompatible return value type (got "Sequence[Evidence]", expected "list[Evidence]")  [return-value]
+tests/test_notifications.py:41: error: Argument "target_id" to "create_evidence" of "EvidenceManager" has incompatible type "int | None"; expected "int"  [arg-type]
+tests/test_notifications.py:72: error: Argument "target_id" to "create_evidence" of "EvidenceManager" has incompatible type "int | None"; expected "int"  [arg-type]
+tests/test_notifications.py:103: error: Argument "target_id" to "create_evidence" of "EvidenceManager" has incompatible type "int | None"; expected "int"  [arg-type]
+src/bounty_command_center/tool_integrator.py:36: error: "AsyncToolRunner" has no attribute "run"  [attr-defined]
+src/bounty_command_center/cli.py:50: error: "UserManager" has no attribute "create_user"  [attr-defined]
+src/bounty_command_center/cli.py:120: error: Incompatible default for argument "status" (default has type "None", argument has type "str")  [assignment]
+src/bounty_command_center/cli.py:120: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+src/bounty_command_center/cli.py:120: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+src/bounty_command_center/auth.py:4: error: Library stubs not installed for "jose"  [import-untyped]
+src/bounty_command_center/auth.py:4: note: Hint: "python3 -m pip install types-python-jose"
+src/bounty_command_center/auth.py:75: error: Argument "username" to "get_user_by_username" of "UserManager" has incompatible type "str | None"; expected "str"  [arg-type]
+tests/test_reports.py:65: error: Argument "evidence_id" to "generate_pdf_report_for_evidence" has incompatible type "int | None"; expected "int"  [arg-type]
+Found 29 errors in 18 files (checked 42 source files)

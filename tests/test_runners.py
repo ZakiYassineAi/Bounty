@@ -1,7 +1,6 @@
 import pytest
-import asyncio
-from unittest.mock import MagicMock, AsyncMock
-from bounty_command_center.models import Target, Evidence
+from unittest.mock import AsyncMock
+from bounty_command_center.models import Target
 from bounty_command_center.subfinder_runner import SubfinderRunner
 from bounty_command_center.dalfox_runner import DalfoxRunner
 from bounty_command_center.sqlmap_runner import SqlmapRunner

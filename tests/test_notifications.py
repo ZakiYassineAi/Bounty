@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from sqlmodel import Session, create_engine
-from bounty_command_center.models import Target, Evidence
+from bounty_command_center.models import Target
 from bounty_command_center.evidence_manager import EvidenceManager
 
 # Create a new engine for the test database

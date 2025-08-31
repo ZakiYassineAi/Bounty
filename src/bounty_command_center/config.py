@@ -81,7 +81,7 @@ def load_config(config_path: Path = Path("config.yaml")) -> Settings:
         except ValidationError as e:
             log.error("Configuration validation failed, using defaults.", errors=e.errors())
             return Settings()
-        except Exception as e:
+        except Exception:
             log.exception("An unexpected error occurred loading config, using defaults.")
             return Settings()
     else:

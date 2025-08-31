@@ -16,7 +16,6 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 def session_fixture():
     # Importing the models here ensures they are registered with SQLModel
     # before the tables are created.
-    from bounty_command_center import models
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session

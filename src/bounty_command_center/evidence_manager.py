@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from .models import Evidence, Target
 from .notification_manager import NotificationManager
-from .config import settings
 
 class EvidenceManager:
     """Manages CRUD operations for evidence in the database."""
