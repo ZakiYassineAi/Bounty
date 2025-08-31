@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from .logging_setup import get_logger
 import psutil
 import time
@@ -108,7 +108,7 @@ class AsyncToolRunner:
 
             if proc.returncode != 0 and aborted:
                 log.warning("Command was aborted due to excessive resource usage", stdout=stdout, stderr=stderr, return_code=proc.returncode)
-                stderr = f"Command aborted after exceeding resource limits (CPU > 80% or Memory > 75% for 30s)."
+                stderr = "Command aborted after exceeding resource limits (CPU > 80% or Memory > 75% for 30s)."
             elif proc.returncode == 0:
                 log.info("Command finished successfully", stdout=stdout, stderr=stderr, return_code=proc.returncode)
             else:

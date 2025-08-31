@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from sqlmodel import create_engine, SQLModel, Session
 
 # Define the path for the SQLite database file
@@ -17,9 +18,11 @@ def create_db_and_tables():
     # all the tables that inherit from SQLModel.
     SQLModel.metadata.create_all(engine)
 
+@contextmanager
 def get_session():
     """
     Provides a new database session for performing transactions.
+    This is a context manager, so it should be used with a `with` statement.
     """
     with Session(engine) as session:
         yield session

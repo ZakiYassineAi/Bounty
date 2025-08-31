@@ -6,7 +6,6 @@ from sqlmodel import Session
 from .. import auth, security, user_manager, schemas
 from ..database import get_session
 from ..config import settings
-from ..models import User
 
 router = APIRouter(
     prefix="/auth",

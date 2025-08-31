@@ -51,7 +51,7 @@ def create_user(
         if user:
             console.print(f"[green]✔[/green] Successfully created user: {username} with role {role}")
         else:
-            console.print(f"[red]✖[/red] Failed to create user. Username may already exist.")
+            console.print("[red]✖[/red] Failed to create user. Username may already exist.")
             raise typer.Exit(code=1)
 
 @app.callback()
@@ -76,7 +76,7 @@ def add_target(
         if tm.add_target(db, name, url, scope_list):
             console.print(f"[green]✔[/green] Successfully added target: {name}")
         else:
-            console.print(f"[red]✖[/red] Failed to add target. It may already exist.")
+            console.print("[red]✖[/red] Failed to add target. It may already exist.")
             raise typer.Exit(code=1)
 
 @target_app.command("list")
@@ -109,7 +109,7 @@ def remove_target(
             if tm.remove_target(db, name):
                 console.print(f"[green]✔[/green] Successfully removed target: {name}")
             else:
-                console.print(f"[red]✖[/red] Failed to remove target. It may not exist.")
+                console.print("[red]✖[/red] Failed to remove target. It may not exist.")
                 raise typer.Exit(code=1)
     else:
         console.print("Operation cancelled.")
@@ -150,7 +150,7 @@ def update_evidence_status(
         if em.update_evidence_status(db, evidence_id, new_status):
             console.print(f"[green]✔[/green] Successfully updated evidence {evidence_id} to '{new_status}'.")
         else:
-            console.print(f"[red]✖[/red] Failed to update evidence. The ID may not exist.")
+            console.print("[red]✖[/red] Failed to update evidence. The ID may not exist.")
             raise typer.Exit(code=1)
 
 @evidence_app.command("report")
@@ -164,14 +164,13 @@ def export_report(evidence_id: int = typer.Argument(..., help="The ID of the evi
         if report_path:
             console.print(f"[green]✔[/green] Successfully generated report at: {report_path}")
         else:
-            console.print(f"[red]✖[/red] Failed to generate report. Check logs for details.")
+            console.print("[red]✖[/red] Failed to generate report. Check logs for details.")
             raise typer.Exit(code=1)
 
 # --- Main App Commands ---
 
 async def _run_scan_async(target_name: str):
     """Async helper function to run scans and process results."""
-    log = get_logger("run_scan")
     with Session(engine) as db:
         target = tm.get_target_by_name(db, target_name)
         if not target:
@@ -214,6 +213,18 @@ async def _run_scan_async(target_name: str):
 def run_scan(target_name: str = typer.Argument(..., help="The name of the target to scan.")):
     """Runs a set of reconnaissance scans on a specific target."""
     asyncio.run(_run_scan_async(target_name))
+
+@app.command()
+def harvest(platform: str = typer.Argument(..., help="The platform to harvest (e.g., intigriti).")):
+    """Runs the harvester for a specific platform."""
+    from .harvester_aggregator import HarvesterAggregator
+    log = get_logger("harvest")
+    log.info("Starting harvester for platform", platform=platform)
+    console.print(f"Starting harvester for [bold magenta]{platform}[/bold magenta]...")
+    aggregator = HarvesterAggregator()
+    aggregator.run(platform)
+    console.print(f"[green]✔[/green] Harvester for {platform} finished.")
+
 
 @app.command()
 def migrate():

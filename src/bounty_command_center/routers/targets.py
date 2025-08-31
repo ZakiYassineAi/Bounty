@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
+from typing import List
 
 from sqlmodel import Session
 from .. import schemas, target_manager

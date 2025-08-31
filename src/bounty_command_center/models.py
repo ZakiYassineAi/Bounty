@@ -33,3 +33,31 @@ class User(SQLModel, table=True):
     username: str = Field(index=True, unique=True, min_length=3, max_length=50)
     hashed_password: str
     role: str # E.g., "admin", "researcher", "viewer"
+
+class ProgramRaw(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    platform: str = Field(index=True)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    data: str  # Storing as a string, could be JSON or HTML
+    etag: Optional[str] = Field(default=None)
+    last_modified: Optional[str] = Field(default=None)
+
+class ProgramClean(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    url: str = Field(unique=True)
+    platform: str = Field(index=True)
+    scope: List[str] = Field(sa_column=Column(JSON))
+    vulnerability_types: List[str] = Field(default=[], sa_column=Column(JSON))
+    min_bounty: Optional[float] = Field(default=None)
+    max_bounty: Optional[float] = Field(default=None)
+    status: str = Field(default="public", index=True)
+    last_updated: Optional[datetime] = Field(default=None)
+    acceptance_rate: Optional[float] = Field(default=None)
+
+class ProgramInvalid(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    platform: str = Field(index=True)
+    raw_data: str
+    error_message: str
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
