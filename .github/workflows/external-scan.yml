@@ -1,0 +1,97 @@
+name: external-scan
+on:
+  push:
+    branches:
+      - 'automation/**'
+    paths:
+      - '.scan/**'
+      - '.github/workflows/external-scan.yml'
+  schedule:
+    - cron: '0 21 * * *'   # تشغيل يومي 21:00 UTC (اختياري)
+  workflow_dispatch: {}     # فقط كبديل احتياطي
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl jq
+          curl -fsSL https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder-linux-amd64.zip -o subfinder.zip
+          unzip -o subfinder.zip && sudo mv subfinder /usr/local/bin/ && rm subfinder.zip
+          curl -fsSL https://github.com/projectdiscovery/httpx/releases/latest/download/httpx-linux-amd64.zip -o httpx.zip
+          unzip -o httpx.zip && sudo mv httpx /usr/local/bin/ && rm httpx.zip
+          curl -fsSL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei-linux-amd64.zip -o nuclei.zip
+          unzip -o nuclei.zip && sudo mv nuclei /usr/local/bin/ && rm nuclei.zip
+
+      - name: Load config
+        id: cfg
+        run: |
+          set -euo pipefail
+          TARGET="$(cat .scan/target.txt | tr -d '[:space:]')"
+          [ -f .scan/params.env ] && source .scan/params.env || true
+          RATE="${RATE:-2}"
+          CONC="${CONC:-10}"
+          echo "TARGET=$TARGET" >> $GITHUB_OUTPUT
+          echo "RATE=$RATE" >> $GITHUB_OUTPUT
+          echo "CONC=$CONC" >> $GITHUB_OUTPUT
+
+      - name: Scan
+        env:
+          TARGET: ${{ steps.cfg.outputs.TARGET }}
+          RATE: ${{ steps.cfg.outputs.RATE }}
+          CONC: ${{ steps.cfg.outputs.CONC }}
+        run: |
+          set -euo pipefail
+          mkdir -p out && cd out
+
+          # Discover subdomains
+          subfinder -d "$TARGET" -silent -o subs.txt || true
+          sort -fu subs.txt -o subs.txt
+
+          # Probe live services (HTTPS-first, common ports)
+          httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
+                -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
+
+          # Safe nuclei scan
+          nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
+                 -tags cve,exposed-panels,misconfiguration \
+                 -severity medium,high,critical \
+                 -jsonl -silent -o nuclei.jsonl || true
+
+          # High/Critical extraction
+          jq -r 'select(.info.severity=="high" or .info.severity=="critical")
+                 | [.matched-at, .info.name, .info.severity, (.templateID // "")]
+                 | @tsv' nuclei.jsonl > high_findings.tsv || true
+
+          # Report
+          {
+            echo "# Executive summary"
+            echo "- Target: $TARGET"
+            echo "- Subdomains: $(wc -l < subs.txt 2>/dev/null || echo 0)"
+            echo "- Live services: $(wc -l < live.txt 2>/dev/null || echo 0)"
+            echo "- Findings: $(wc -l < nuclei.jsonl 2>/dev/null || echo 0)"
+            echo "- High/Critical: $(wc -l < high_findings.tsv 2>/dev/null || echo 0)"
+            echo ""
+            echo "## High/Critical details"
+            if [ -s high_findings.tsv ]; then
+              awk -F'\t' '{printf "- %s — %s (%s) [template: %s]\n",$1,$2,$3,$4}' high_findings.tsv
+            else
+              echo "- None in this run."
+            fi
+          } > report.md
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: out/*
