@@ -1,14 +1,19 @@
 name: Hardened Multi-Job Security Scan
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       target:
-        description: "Target domain or IP"
-        required: true
+        description: "Target domain or IP. Defaults to ziana-scan.bensalemyassine498.workers.dev on automated runs."
+        required: false
+        default: 'ziana-scan.bensalemyassine498.workers.dev'
       sev:
         description: "Minimum severity to report (low|medium|high|critical)"
-        required: true
+        required: false
         default: "medium"
   schedule:
     - cron: "0 */12 * * *"
