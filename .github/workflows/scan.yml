@@ -1,0 +1,70 @@
+name: Automated Scan (Direct Install)
+
+on:
+  push:
+    branches:
+      - 'automation/direct-install-20250901_115658'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight context
+        run: |
+          mkdir -p logs out_scan reports
+          echo "== CONTEXT ==" > logs/preflight.txt
+          echo "ref=${GITHUB_REF}" >> logs/preflight.txt
+          echo "sha=${GITHUB_SHA}" >> logs/preflight.txt
+          echo "actor=${GITHUB_ACTOR}" >> logs/preflight.txt
+          echo "event=${GITHUB_EVENT_NAME}" >> logs/preflight.txt
+
+      - name: Install PD tools
+        run: |
+          set -e
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl jq
+          curl -sSLo subfinder.zip https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder_linux_amd64.zip
+          unzip -o subfinder.zip && sudo mv subfinder /usr/local/bin/ && rm subfinder.zip
+          curl -sSLo httpx.zip https://github.com/projectdiscovery/httpx/releases/latest/download/httpx_linux_amd64.zip
+          unzip -o httpx.zip && sudo mv httpx /usr/local/bin/ && rm httpx.zip
+          curl -sSLo nuclei.zip https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip
+          unzip -o nuclei.zip && sudo mv nuclei /usr/local/bin/ && rm nuclei.zip
+
+      - name: Verify tools & env
+        if: always()
+        run: |
+          echo "=== PATH ===" && echo $PATH
+          which subfinder || echo "subfinder not found"
+          which httpx     || echo "httpx not found"
+          which nuclei    || echo "nuclei not found"
+          subfinder -version || true
+          httpx -version     || true
+          nuclei -version    || true
+
+      - name: Run Subfinder
+        run: subfinder -d example.com -silent -o out_scan/subs.txt || true
+
+      - name: Run Httpx
+        run: httpx -l out_scan/subs.txt -silent -o out_scan/live.txt || true
+
+      - name: Run Nuclei
+        run: nuclei -l out_scan/live.txt -severity medium,high,critical -jsonl -o out_scan/report.jsonl || true
+
+      - name: Generate report.tsv
+        run: jq -r '[.matched-at, .info.name, .info.severity] | @tsv' out_scan/report.jsonl > reports/report.tsv || true
+
+      - name: Upload artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-${ github.run_id }
+          path: |
+            logs/**
+            out_scan/**
+            reports/**
+          if-no-files-found: warn
