@@ -6,20 +6,22 @@ on:
       - '.scan/**'
       - '.github/workflows/external-scan.yml'
   schedule:
-    - cron: '0 * * * *'   # يعمل فقط من الفرع الافتراضي (UTC كل ساعة)
+    - cron: '0 * * * *'
   workflow_dispatch: {}
+
+concurrency:
+  group: external-scan
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: true }
 
       - name: Install tools
         run: |
@@ -47,6 +49,7 @@ jobs:
         env:
           RATE: ${{ steps.cfg.outputs.RATE }}
           CONC: ${{ steps.cfg.outputs.CONC }}
+          TARGETS_PATH: ${{ steps.cfg.outputs.TARGETS_PATH }}
         run: |
           set -euo pipefail
           TS="$(date -u +%Y%m%d_%H%M%S)"
@@ -57,22 +60,17 @@ jobs:
             SAFENAME="$(echo "$TARGET" | tr -cd 'A-Za-z0-9.-')"
             OUT="${OUT_ROOT}/${SAFENAME}"
             mkdir -p "$OUT" && cd "$OUT"
-
             subfinder -d "$TARGET" -silent -o subs.txt || true
             sort -fu subs.txt -o subs.txt
-
             httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
                   -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
-
             nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
                    -tags cve,exposed-panels,misconfiguration \
                    -severity medium,high,critical \
                    -jsonl -silent -o nuclei.jsonl || true
-
             jq -r 'select(.info.severity=="high" or .info.severity=="critical")
                    | [.matched-at, .info.name, .info.severity, (.templateID // "")]
                    | @tsv' nuclei.jsonl > high_findings.tsv || true
-
             {
               echo "# Executive summary"
               echo "- Target: $TARGET"
@@ -88,9 +86,8 @@ jobs:
                 echo "- None in this run."
               fi
             } > report.md
-
             cd - >/dev/null
-          done < ".scan/targets.txt"
+          done < "$TARGETS_PATH"
 
       - name: Upload artifacts (always)
         if: always()
@@ -100,7 +97,7 @@ jobs:
           path: out_*/**
           if-no-files-found: warn
 
-      - name: Commit reports to scan-reports (always)
+      - name: Push reports or open PR (always)
         if: always()
         env:
           GH_REPO: ${{ github.repository }}
@@ -111,15 +108,31 @@ jobs:
           git config user.name "scan-bot"
           git config user.email "scan-bot@users.noreply.github.com"
           git fetch origin
-          git checkout -B scan-reports
           REPORTS_DIR="reports/$TS"
           mkdir -p "$REPORTS_DIR"
           find . -maxdepth 1 -type d -name 'out_*' -exec bash -c 'mv "$0"/* "$1/"' bash "$REPORTS_DIR" \; || true
           git add reports || true
-          if git diff --staged --quiet; then
+          if ! git diff --staged --quiet; then
+            echo "Changes found, committing..."
+            git checkout -B scan-reports
+            git commit -m "chore(reports): add scan results $TS"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
+            if git push origin scan-reports; then
+              echo "Pushed to scan-reports"
+            else
+              echo "Protected branch; creating PR instead."
+              BR="reports/${TS}"
+              git checkout -B "$BR"
+              git push origin "$BR"
+              BASE="scan-reports"
+              if ! git ls-remote --heads origin --exit-code "refs/heads/$BASE"; then
+                  BASE="${{ github.ref_name }}"
+              fi
+              curl -fsSL -X POST \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GH_REPO}/pulls" \
+                -d "{\"title\":\"reports: ${TS}\",\"head\":\"${BR}\",\"base\":\"${BASE}\",\"body\":\"Automated reports ${TS}\"}" || true
+            fi
+          else
             echo "No changes to commit."
-            exit 0
           fi
-          git commit -m "chore(reports): add scan results $TS (rate=${{ steps.cfg.outputs.RATE }}, conc=${{ steps.cfg.outputs.CONC }})"
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
-          git push origin scan-reports
