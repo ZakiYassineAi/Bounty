@@ -1,0 +1,59 @@
+name: Automated Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight log
+        run: |
+          mkdir -p logs out_scan reports
+          echo "ref=${GITHUB_REF}" > logs/preflight.txt
+          echo "sha=${GITHUB_SHA}" >> logs/preflight.txt
+          echo "actor=${GITHUB_ACTOR}" >> logs/preflight.txt
+          echo "event=${GITHUB_EVENT_NAME}" >> logs/preflight.txt
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl jq
+          curl -sSfL https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder_amd64.zip -o subfinder.zip
+          unzip -o subfinder.zip && sudo mv subfinder /usr/local/bin/
+          curl -sSfL https://github.com/projectdiscovery/httpx/releases/latest/download/httpx_amd64.zip -o httpx.zip
+          unzip -o httpx.zip && sudo mv httpx /usr/local/bin/
+          curl -sSfL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_amd64.zip -o nuclei.zip
+          unzip -o nuclei.zip && sudo mv nuclei /usr/local/bin/
+
+      - name: Verify tools & env
+        if: always()
+        run: |
+          echo "=== PATH ==="
+          echo $PATH
+          which subfinder || echo "subfinder not found"
+          which httpx || echo "httpx not found"
+          which nuclei || echo "nuclei not found"
+          subfinder -version || true
+          httpx -version || true
+          nuclei -version || true
+
+      - name: Run scan
+        run: |
+          subfinder -d example.com -silent -o out_scan/subdomains.txt || true
+          httpx -l out_scan/subdomains.txt -silent -o out_scan/live.txt || true
+          nuclei -l out_scan/live.txt -silent -o reports/vulns.txt || true
+
+      - name: Upload all outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: |
+            logs/**
+            out_scan/**
+            reports/**
+          if-no-files-found: warn
