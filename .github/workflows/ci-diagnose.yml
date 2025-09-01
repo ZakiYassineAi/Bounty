@@ -1,7 +1,7 @@
 name: ci-diagnose
 on:
   push:
-    branches: ['automation/**', 'automated/**']
+    branches: ['**']
   workflow_dispatch: {}
 jobs:
   diag:
@@ -26,9 +26,6 @@ jobs:
           echo "sha=${GITHUB_SHA}" >> diagnostics/diag.txt
           echo "actor=${GITHUB_ACTOR}" >> diagnostics/diag.txt
           echo "event=${GITHUB_EVENT_NAME}" >> diagnostics/diag.txt
-          curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}" | jq -r '.default_branch' > diagnostics/default_branch.txt
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
