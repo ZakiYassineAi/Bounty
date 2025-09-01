@@ -1,4 +1,4 @@
-name: Jules Full Security Scan (Hardened + Docker Fallback)
+name: Hardened Multi-Job Security Scan
 
 on:
   workflow_dispatch:
@@ -10,31 +10,41 @@ on:
         description: "Minimum severity to report (low|medium|high|critical)"
         required: true
         default: "medium"
+  schedule:
+    - cron: "0 */12 * * *"
+
+concurrency:
+  group: jules-full-scan
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   primary-scan:
     name: Primary Scan via Jules
     runs-on: ubuntu-latest
-    continue-on-error: true
-    outputs:
-      result: ${{ steps.jules_scan_step.outcome }}
+    # No continue-on-error here; we need the job to fail to activate fallback
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Install Jules
         run: |
-          curl -sSL https://install.jules.sh | bash
+          set -euo pipefail
+          curl -fsSL https://install.jules.sh | bash
           jules --version
 
       - name: Run Jules scan
-        id: jules_scan_step
         run: |
-          jules scan --target "${{ github.event.inputs.target }}" --sev "${{ github.event.inputs.sev }}" \
+          set -euo pipefail
+          jules scan \
+            --target "${{ github.event.inputs.target }}" \
+            --sev "${{ github.event.inputs.sev }}" \
             --output results/primary
-        continue-on-error: true
 
-      - name: Upload primary results
+      - name: Upload primary results (always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: primary-results
@@ -43,78 +53,138 @@ jobs:
   docker-fallback:
     name: Docker Fallback Scan
     needs: primary-scan
-    if: ${{ needs.primary-scan.result == 'failure' }}
+    if: ${{ always() && needs.primary-scan.result != 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Run Subfinder
-        run: |
-          docker run --rm -v $PWD:/data projectdiscovery/subfinder:latest -d ${{ github.event.inputs.target }} -o /data/subdomains.txt
+      - name: Prepare dirs
+        run: mkdir -p out_scan reports logs
 
-      - name: Run Httpx
+      - name: Subfinder (Docker)
         run: |
-          docker run --rm -v $PWD:/data projectdiscovery/httpx:latest -l /data/subdomains.txt -o /data/httpx.txt
+          docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/subfinder:latest \
+            -d "${{ github.event.inputs.target }}" -silent -o /data/subs.txt || echo "subfinder_error" >> logs/fallback.txt
 
-      - name: Run Nuclei
+      - name: Httpx (Docker)
         run: |
-          docker run --rm -v $PWD:/data projectdiscovery/nuclei:latest -l /data/httpx.txt -severity ${{ github.event.inputs.sev }} -o /data/nuclei.txt
+          if [ -s out_scan/subs.txt ]; then
+            docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/httpx:latest \
+              -l /data/subs.txt -silent -o /data/live.txt || echo "httpx_error" >> logs/fallback.txt
+          else
+            touch out_scan/live.txt
+          fi
 
-      - name: Upload fallback results
+      - name: Nuclei (Docker)
+        run: |
+          docker run --rm projectdiscovery/nuclei:latest -update -silent || true
+          if [ -s out_scan/live.txt ]; then
+            docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/nuclei:latest \
+              -l /data/live.txt -severity "${{ github.event.inputs.sev }}" -jsonl -o /data/report.jsonl || echo "nuclei_error" >> logs/fallback.txt
+          else
+            touch out_scan/report.jsonl
+          fi
+
+      - name: Generate TSV
+        run: |
+          python3 - << 'PY'
+import json, sys, os
+inp="out_scan/report.jsonl"; outp="reports/report.tsv"
+os.makedirs("reports", exist_ok=True)
+if not os.path.exists(inp) or os.stat(inp).st_size == 0:
+    open(outp,"w").write("No findings\t-\t-\n"); sys.exit(0)
+lines=[]
+with open(inp,"r",encoding="utf-8",errors="ignore") as f:
+    for line in f:
+        line=line.strip()
+        if not line: continue
+        try:
+            j=json.loads(line)
+            matched=j.get("matched-at","-")
+            info=j.get("info",{})
+            name=info.get("name","-")
+            sev=info.get("severity","-")
+            lines.append(f"{matched}\t{name}\t{sev}")
+        except Exception:
+            pass
+open(outp,"w",encoding="utf-8").write("\n".join(lines) if lines else "No findings\t-\t-\n")
+PY
+
+      - name: Upload fallback results (always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fallback-results
-          path: "*.txt"
+          path: |
+            logs/
+            out_scan/
+            reports/
 
   merge-reports:
     name: Merge Reports
-    if: always()
     needs: [primary-scan, docker-fallback]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: merged-artifacts
+          path: merged
 
       - name: Merge into single report
         run: |
-          mkdir -p final-report
-          find merged-artifacts -type f -name "*.txt" -exec cat {} + > final-report/combined_report.txt
+          set -e
+          mkdir -p final
+          shopt -s globstar nullglob
+          files=(merged//*.{txt,log,tsv,jsonl})
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No reports found." > final/combined_report.txt
+          else
+            > final/combined_report.txt
+            for f in "${files[@]}"; do
+              echo "===== ${f} =====" >> final/combined_report.txt
+              sed -e 's/\r$//' "$f" >> final/combined_report.txt || true
+              echo "" >> final/combined_report.txt
+            done
+          fi
 
       - name: Upload final report
         uses: actions/upload-artifact@v4
         with:
           name: final-report
-          path: final-report/combined_report.txt
+          path: final/combined_report.txt
 
   notify:
     name: Notify on Critical Findings
     needs: merge-reports
-    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Download final report
         uses: actions/download-artifact@v4
         with:
           name: final-report
-          path: final-report
+          path: .
 
       - name: Check for critical issues
-        id: check_critical
+        id: critical
         run: |
-          if grep -qi "critical" final-report/combined_report.txt; then
-            echo "CRITICALFOUND=true" >> $GITHUB_ENV
+          if grep -qi "critical" combined_report.txt; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Send Slack Alert
-        if: env.CRITICALFOUND == 'true'
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": ":rotating_light: Critical vulnerabilities found in scan for ${{ github.event.inputs.target }}"
-            }
-        env:
-          SLACKWEBHOOKURL: ${{ secrets.SLACKWEBHOOKURL }}
+      - name: Slack alert (optional)
+        if: steps.critical.outputs.found == 'true' && success()
+        run: |
+          if [ -n "${{ secrets.SLACKWEBHOOKURL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"🚨 Critical vulnerabilities found for ${{
+                github.event.inputs.target
+              }} (severity >= ${{
+                github.event.inputs.sev
+              }})\"}" \
+              "${{ secrets.SLACKWEBHOOKURL }}"
+          else
+            echo "No SLACKWEBHOOKURL secret configured. Skipping alert."
