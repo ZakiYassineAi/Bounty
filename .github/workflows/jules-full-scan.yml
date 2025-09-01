@@ -1,195 +1,96 @@
-name: Hardened Multi-Job Security Scan
+name: Jules - Full Security Scan
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       target:
-        description: "Target domain or IP. Defaults to ziana-scan.bensalemyassine498.workers.dev on automated runs."
+        description: "What to scan: repo | docker | iac"
         required: false
-        default: 'ziana-scan.bensalemyassine498.workers.dev'
+        default: repo
       sev:
-        description: "Minimum severity to report (low|medium|high|critical)"
+        description: "Minimum severity: low | medium | high | critical"
         required: false
-        default: "medium"
-  schedule:
-    - cron: "0 */12 * * *"
+        default: medium
+  push:
+    branches:
+      - "**"           # Run on any branch (change if you only want main)
+  pull_request:
+    branches:
+      - main           # Run on PRs targeting main
 
-concurrency:
-  group: jules-full-scan
-  cancel-in-progress: true
-
+# Permissions needed to upload Code Scanning reports (SARIF)
 permissions:
   contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: full-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+# Safe defaults for inputs to prevent skipping on non-interactive events
+env:
+  TARGET: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.target) || 'repo' }}
+  MIN_SEV: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.sev) || 'medium' }}
+
+  # Convert severity to the format Trivy expects
+  # low -> LOW,MEDIUM,HIGH,CRITICAL
+  # medium -> MEDIUM,HIGH,CRITICAL
+  # high -> HIGH,CRITICAL
+  # critical -> CRITICAL
+  TRIVY_SEVERITY: ${{ fromJSON('{
+      "low":"LOW,MEDIUM,HIGH,CRITICAL",
+      "medium":"MEDIUM,HIGH,CRITICAL",
+      "high":"HIGH,CRITICAL",
+      "critical":"CRITICAL"
+    }')[((github.event_name == 'workflow_dispatch' && github.event.inputs.sev) || 'medium')] }}
 
 jobs:
-  primary-scan:
-    name: Primary Scan via Jules
+  scan:
+    # Optional: skip run if commit message contains [skip ci]
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
-    # No continue-on-error here; we need the job to fail to activate fallback
+
     steps:
-      - name: Checkout repo
+      - name: Debug event (useful when "No jobs were run")
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "base_ref=${{ github.base_ref }}"
+          echo "TARGET=$TARGET"
+          echo "MIN_SEV=$MIN_SEV"
+          echo "TRIVY_SEVERITY=$TRIVY_SEVERITY"
+
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Jules
-        run: |
-          set -euo pipefail
-          curl -fsSL https://install.jules.sh | bash
-          jules --version
-
-      - name: Run Jules scan
-        run: |
-          set -euo pipefail
-          jules scan \
-            --target "${{ github.event.inputs.target }}" \
-            --sev "${{ github.event.inputs.sev }}" \
-            --output results/primary
-
-      - name: Upload primary results (always)
-        if: always()
-        uses: actions/upload-artifact@v4
+      # ===== Example of a real scanner: Trivy repo scan + SARIF upload =====
+      - name: Run Trivy (filesystem / repo scan)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
-          name: primary-results
-          path: results/primary
+          scan-type: fs
+          format: sarif
+          output: trivy-results.sarif
+          severity: ${{ env.TRIVY_SEVERITY }}
+          ignore-unfixed: true
 
-  docker-fallback:
-    name: Docker Fallback Scan
-    needs: primary-scan
-    if: ${{ always() && needs.primary-scan.result != 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Prepare dirs
-        run: mkdir -p out_scan reports logs
-
-      - name: Subfinder (Docker)
-        run: |
-          docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/subfinder:latest \
-            -d "${{ github.event.inputs.target }}" -silent -o /data/subs.txt || echo "subfinder_error" >> logs/fallback.txt
-
-      - name: Httpx (Docker)
-        run: |
-          if [ -s out_scan/subs.txt ]; then
-            docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/httpx:latest \
-              -l /data/subs.txt -silent -o /data/live.txt || echo "httpx_error" >> logs/fallback.txt
-          else
-            touch out_scan/live.txt
-          fi
-
-      - name: Nuclei (Docker)
-        run: |
-          docker run --rm projectdiscovery/nuclei:latest -update -silent || true
-          if [ -s out_scan/live.txt ]; then
-            docker run --rm -v "$PWD/out_scan:/data" projectdiscovery/nuclei:latest \
-              -l /data/live.txt -severity "${{ github.event.inputs.sev }}" -jsonl -o /data/report.jsonl || echo "nuclei_error" >> logs/fallback.txt
-          else
-            touch out_scan/report.jsonl
-          fi
-
-      - name: Generate TSV
-        run: |
-          python3 - << 'PY'
-import json, sys, os
-inp="out_scan/report.jsonl"; outp="reports/report.tsv"
-os.makedirs("reports", exist_ok=True)
-if not os.path.exists(inp) or os.stat(inp).st_size == 0:
-    open(outp,"w").write("No findings\t-\t-\n"); sys.exit(0)
-lines=[]
-with open(inp,"r",encoding="utf-8",errors="ignore") as f:
-    for line in f:
-        line=line.strip()
-        if not line: continue
-        try:
-            j=json.loads(line)
-            matched=j.get("matched-at","-")
-            info=j.get("info",{})
-            name=info.get("name","-")
-            sev=info.get("severity","-")
-            lines.append(f"{matched}\t{name}\t{sev}")
-        except Exception:
-            pass
-open(outp,"w",encoding="utf-8").write("\n".join(lines) if lines else "No findings\t-\t-\n")
-PY
-
-      - name: Upload fallback results (always)
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: fallback-results
-          path: |
-            logs/
-            out_scan/
-            reports/
+          sarif_file: trivy-results.sarif
 
-  merge-reports:
-    name: Merge Reports
-    needs: [primary-scan, docker-fallback]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      # ===== Example of expanding based on TARGET =====
+      - name: Conditional Docker scan
+        if: ${{ env.TARGET == 'docker' }}
+        uses: aquasecurity/trivy-action@0.24.0
         with:
-          path: merged
+          image-ref: ${{ github.repository }}:latest
+          format: sarif
+          output: trivy-image.sarif
+          severity: ${{ env.TRIVY_SEVERITY }}
 
-      - name: Merge into single report
-        run: |
-          set -e
-          mkdir -p final
-          shopt -s globstar nullglob
-          files=(merged//*.{txt,log,tsv,jsonl})
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No reports found." > final/combined_report.txt
-          else
-            > final/combined_report.txt
-            for f in "${files[@]}"; do
-              echo "===== ${f} =====" >> final/combined_report.txt
-              sed -e 's/\r$//' "$f" >> final/combined_report.txt || true
-              echo "" >> final/combined_report.txt
-            done
-          fi
-
-      - name: Upload final report
-        uses: actions/upload-artifact@v4
+      - name: Upload Docker SARIF
+        if: ${{ env.TARGET == 'docker' }}
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: final-report
-          path: final/combined_report.txt
-
-  notify:
-    name: Notify on Critical Findings
-    needs: merge-reports
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download final report
-        uses: actions/download-artifact@v4
-        with:
-          name: final-report
-          path: .
-
-      - name: Check for critical issues
-        id: critical
-        run: |
-          if grep -qi "critical" combined_report.txt; then
-            echo "found=true" >> $GITHUB_OUTPUT
-          else
-            echo "found=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Slack alert (optional)
-        if: steps.critical.outputs.found == 'true' && success()
-        run: |
-          if [ -n "${{ secrets.SLACKWEBHOOKURL }}" ]; then
-            curl -X POST -H 'Content-type: application/json' \
-              --data "{\"text\":\"🚨 Critical vulnerabilities found for ${{
-                github.event.inputs.target
-              }} (severity >= ${{
-                github.event.inputs.sev
-              }})\"}" \
-              "${{ secrets.SLACKWEBHOOKURL }}"
-          else
-            echo "No SLACKWEBHOOKURL secret configured. Skipping alert."
+          sarif_file: trivy-image.sarif
