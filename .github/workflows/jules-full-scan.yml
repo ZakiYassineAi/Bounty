@@ -1,31 +1,120 @@
-name: Jules Full Security Scan
+name: Jules Full Security Scan (Hardened + Docker Fallback)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */12 * * *" # كل 12 ساعة
+    inputs:
+      target:
+        description: "Target domain or IP"
+        required: true
+      sev:
+        description: "Minimum severity to report (low|medium|high|critical)"
+        required: true
+        default: "medium"
 
 jobs:
-  scan:
+  primary-scan:
+    name: Primary Scan via Jules
     runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      result: ${{ steps.jules_scan_step.outcome }}
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install Jules CLI
+      - name: Install Jules
         run: |
-          curl -sSL https://get.jules.dev/install.sh | bash
-          echo "$HOME/.jules/bin" >> $GITHUB_PATH
+          curl -sSL https://install.jules.sh | bash
+          jules --version
 
-      - name: Run Jules Pipeline
-        run: jules run jules.yml --log reports/diagnostics.log --retry 2
+      - name: Run Jules scan
+        id: jules_scan_step
+        run: |
+          jules scan --target "${{ github.event.inputs.target }}" --sev "${{ github.event.inputs.sev }}" \
+            --output results/primary
+        continue-on-error: true
 
-      - name: Upload scan results
-        if: always()
+      - name: Upload primary results
         uses: actions/upload-artifact@v4
         with:
-          name: scan-results
-          path: |
-            out_scan/
-            reports/
-          if-no-files-found: warn
+          name: primary-results
+          path: results/primary
+
+  docker-fallback:
+    name: Docker Fallback Scan
+    needs: primary-scan
+    if: ${{ needs.primary-scan.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Subfinder
+        run: |
+          docker run --rm -v $PWD:/data projectdiscovery/subfinder:latest -d ${{ github.event.inputs.target }} -o /data/subdomains.txt
+
+      - name: Run Httpx
+        run: |
+          docker run --rm -v $PWD:/data projectdiscovery/httpx:latest -l /data/subdomains.txt -o /data/httpx.txt
+
+      - name: Run Nuclei
+        run: |
+          docker run --rm -v $PWD:/data projectdiscovery/nuclei:latest -l /data/httpx.txt -severity ${{ github.event.inputs.sev }} -o /data/nuclei.txt
+
+      - name: Upload fallback results
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallback-results
+          path: "*.txt"
+
+  merge-reports:
+    name: Merge Reports
+    if: always()
+    needs: [primary-scan, docker-fallback]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: merged-artifacts
+
+      - name: Merge into single report
+        run: |
+          mkdir -p final-report
+          find merged-artifacts -type f -name "*.txt" -exec cat {} + > final-report/combined_report.txt
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-report
+          path: final-report/combined_report.txt
+
+  notify:
+    name: Notify on Critical Findings
+    needs: merge-reports
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download final report
+        uses: actions/download-artifact@v4
+        with:
+          name: final-report
+          path: final-report
+
+      - name: Check for critical issues
+        id: check_critical
+        run: |
+          if grep -qi "critical" final-report/combined_report.txt; then
+            echo "CRITICALFOUND=true" >> $GITHUB_ENV
+          fi
+
+      - name: Send Slack Alert
+        if: env.CRITICALFOUND == 'true'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: Critical vulnerabilities found in scan for ${{ github.event.inputs.target }}"
+            }
+        env:
+          SLACKWEBHOOKURL: ${{ secrets.SLACKWEBHOOKURL }}
