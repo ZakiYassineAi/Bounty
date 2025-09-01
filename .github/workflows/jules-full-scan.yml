@@ -18,7 +18,7 @@ jobs:
           echo "$HOME/.jules/bin" >> $GITHUB_PATH
 
       - name: Run Jules Pipeline
-        run: jules run jules.yml --log reports/diagnostics.log --retry 2
+        run: jules run jules.yml --jowad=full-scan --log reports/diagnostics.log
 
       - name: Upload scan results
         if: always()
