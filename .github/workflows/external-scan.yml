@@ -1,25 +1,25 @@
 name: external-scan
 on:
   push:
-    branches:
-      - 'automation/**'
+    branches: ['automation/**', 'automated/**']
     paths:
       - '.scan/**'
       - '.github/workflows/external-scan.yml'
   schedule:
-    - cron: '0 21 * * *'   # تشغيل يومي 21:00 UTC (اختياري)
-  workflow_dispatch: {}     # فقط كبديل احتياطي
+    - cron: '0 * * * *'   # يعمل فقط من الفرع الافتراضي (UTC كل ساعة)
+  workflow_dispatch: {}
 
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      actions: read
-      id-token: write
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Install tools
         run: |
@@ -37,61 +37,89 @@ jobs:
         id: cfg
         run: |
           set -euo pipefail
-          TARGET="$(cat .scan/target.txt | tr -d '[:space:]')"
+          TARGETS_FILE=".scan/targets.txt"
           [ -f .scan/params.env ] && source .scan/params.env || true
-          RATE="${RATE:-2}"
-          CONC="${CONC:-10}"
-          echo "TARGET=$TARGET" >> $GITHUB_OUTPUT
-          echo "RATE=$RATE" >> $GITHUB_OUTPUT
-          echo "CONC=$CONC" >> $GITHUB_OUTPUT
+          echo "RATE=${RATE:-2}" >> $GITHUB_OUTPUT
+          echo "CONC=${CONCURRENCY:-10}" >> $GITHUB_OUTPUT
+          echo "TARGETS_PATH=$TARGETS_FILE" >> $GITHUB_OUTPUT
 
-      - name: Scan
+      - name: Run scans
         env:
-          TARGET: ${{ steps.cfg.outputs.TARGET }}
           RATE: ${{ steps.cfg.outputs.RATE }}
           CONC: ${{ steps.cfg.outputs.CONC }}
         run: |
           set -euo pipefail
-          mkdir -p out && cd out
+          TS="$(date -u +%Y%m%d_%H%M%S)"
+          OUT_ROOT="out_${TS}"
+          mkdir -p "$OUT_ROOT"
+          while read -r TARGET || [ -n "$TARGET" ]; do
+            [ -z "$TARGET" ] && continue
+            SAFENAME="$(echo "$TARGET" | tr -cd 'A-Za-z0-9.-')"
+            OUT="${OUT_ROOT}/${SAFENAME}"
+            mkdir -p "$OUT" && cd "$OUT"
 
-          # Discover subdomains
-          subfinder -d "$TARGET" -silent -o subs.txt || true
-          sort -fu subs.txt -o subs.txt
+            subfinder -d "$TARGET" -silent -o subs.txt || true
+            sort -fu subs.txt -o subs.txt
 
-          # Probe live services (HTTPS-first, common ports)
-          httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
-                -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
+            httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
+                  -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
 
-          # Safe nuclei scan
-          nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
-                 -tags cve,exposed-panels,misconfiguration \
-                 -severity medium,high,critical \
-                 -jsonl -silent -o nuclei.jsonl || true
+            nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
+                   -tags cve,exposed-panels,misconfiguration \
+                   -severity medium,high,critical \
+                   -jsonl -silent -o nuclei.jsonl || true
 
-          # High/Critical extraction
-          jq -r 'select(.info.severity=="high" or .info.severity=="critical")
-                 | [.matched-at, .info.name, .info.severity, (.templateID // "")]
-                 | @tsv' nuclei.jsonl > high_findings.tsv || true
+            jq -r 'select(.info.severity=="high" or .info.severity=="critical")
+                   | [.matched-at, .info.name, .info.severity, (.templateID // "")]
+                   | @tsv' nuclei.jsonl > high_findings.tsv || true
 
-          # Report
-          {
-            echo "# Executive summary"
-            echo "- Target: $TARGET"
-            echo "- Subdomains: $(wc -l < subs.txt 2>/dev/null || echo 0)"
-            echo "- Live services: $(wc -l < live.txt 2>/dev/null || echo 0)"
-            echo "- Findings: $(wc -l < nuclei.jsonl 2>/dev/null || echo 0)"
-            echo "- High/Critical: $(wc -l < high_findings.tsv 2>/dev/null || echo 0)"
-            echo ""
-            echo "## High/Critical details"
-            if [ -s high_findings.tsv ]; then
-              awk -F'\t' '{printf "- %s — %s (%s) [template: %s]\n",$1,$2,$3,$4}' high_findings.tsv
-            else
-              echo "- None in this run."
-            fi
-          } > report.md
+            {
+              echo "# Executive summary"
+              echo "- Target: $TARGET"
+              echo "- Subdomains: $(wc -l < subs.txt 2>/dev/null || echo 0)"
+              echo "- Live services: $(wc -l < live.txt 2>/dev/null || echo 0)"
+              echo "- Findings: $(wc -l < nuclei.jsonl 2>/dev/null || echo 0)"
+              echo "- High/Critical: $(wc -l < high_findings.tsv 2>/dev/null || echo 0)"
+              echo ""
+              echo "## High/Critical details"
+              if [ -s high_findings.tsv ]; then
+                awk -F'\t' '{printf "- %s — %s (%s) [template: %s]\n",$1,$2,$3,$4}' high_findings.tsv
+              else
+                echo "- None in this run."
+              fi
+            } > report.md
 
-      - name: Upload artifacts
+            cd - >/dev/null
+          done < ".scan/targets.txt"
+
+      - name: Upload artifacts (always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: scan-results
-          path: out/*
+          name: scan-results-${{ github.run_id }}
+          path: out_*/**
+          if-no-files-found: warn
+
+      - name: Commit reports to scan-reports (always)
+        if: always()
+        env:
+          GH_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TS="$(date -u +%Y%m%d_%H%M%S)"
+          git config user.name "scan-bot"
+          git config user.email "scan-bot@users.noreply.github.com"
+          git fetch origin
+          git checkout -B scan-reports
+          REPORTS_DIR="reports/$TS"
+          mkdir -p "$REPORTS_DIR"
+          find . -maxdepth 1 -type d -name 'out_*' -exec bash -c 'mv "$0"/* "$1/"' bash "$REPORTS_DIR" \; || true
+          git add reports || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(reports): add scan results $TS (rate=${{ steps.cfg.outputs.RATE }}, conc=${{ steps.cfg.outputs.CONC }})"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
+          git push origin scan-reports
