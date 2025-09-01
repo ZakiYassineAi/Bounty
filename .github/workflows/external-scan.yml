@@ -1,19 +1,24 @@
 name: external-scan
 on:
   push:
-    branches: ['automation/**', 'automated/**']
+    branches: ['automation/','automated/']
     paths:
-      - '.scan/**'
+      - '.scan/'
       - '.github/workflows/external-scan.yml'
   schedule:
-    - cron: '0 * * * *'   # يعمل فقط من الفرع الافتراضي (UTC كل ساعة)
+    - cron: '0 * * * *'
   workflow_dispatch: {}
+
+concurrency:
+  group: external-scan
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,11 +26,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Install tools
+      - name: Preflight ensure config and log context
         run: |
           set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y unzip curl jq
+          mkdir -p .scan logs
+          # إن لم يوجد target، أنشئ قيمة افتراضية (يمكن تعديلها لاحقًا)
+          [ -s .scan/targets.txt ] || echo "ziana-scan.bensalemyassine498.workers.dev" > .scan/targets.txt
+          # معلمات افتراضية
+          [ -s .scan/params.env ] || printf "RATE=2\nCONCURRENCY=10\n" > .scan/params.env
+          echo "== GITHUB CONTEXT ==" | tee -a logs/preflight.txt
+          echo "ref=$GITHUB_REF sha=$GITHUB_SHA actor=$GITHUB_ACTOR event=$GITHUB_EVENT_NAME" | tee -a logs/preflight.txt
+          echo "targets:" | tee -a logs/preflight.txt
+          cat .scan/targets.txt | sed 's/^/ - /' | tee -a logs/preflight.txt
+          echo "params:" | tee -a logs/preflight.txt
+          cat .scan/params.env | sed 's/^/ - /' | tee -a logs/preflight.txt
+
+      - name: Install tools (with retry)
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -y || (sleep 5 && sudo apt-get update -y)
+          sudo apt-get install -y unzip curl jq || (sleep 5 && sudo apt-get install -y unzip curl jq)
           curl -fsSL https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder-linux-amd64.zip -o subfinder.zip
           unzip -o subfinder.zip && sudo mv subfinder /usr/local/bin/ && rm subfinder.zip
           curl -fsSL https://github.com/projectdiscovery/httpx/releases/latest/download/httpx-linux-amd64.zip -o httpx.zip
@@ -33,15 +54,13 @@ jobs:
           curl -fsSL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei-linux-amd64.zip -o nuclei.zip
           unzip -o nuclei.zip && sudo mv nuclei /usr/local/bin/ && rm nuclei.zip
 
-      - name: Load config
+      - name: Load params
         id: cfg
         run: |
           set -euo pipefail
-          TARGETS_FILE=".scan/targets.txt"
-          [ -f .scan/params.env ] && source .scan/params.env || true
+          source .scan/params.env || true
           echo "RATE=${RATE:-2}" >> $GITHUB_OUTPUT
           echo "CONC=${CONCURRENCY:-10}" >> $GITHUB_OUTPUT
-          echo "TARGETS_PATH=$TARGETS_FILE" >> $GITHUB_OUTPUT
 
       - name: Run scans
         env:
@@ -52,14 +71,14 @@ jobs:
           TS="$(date -u +%Y%m%d_%H%M%S)"
           OUT_ROOT="out_${TS}"
           mkdir -p "$OUT_ROOT"
-          while read -r TARGET || [ -n "$TARGET" ]; do
-            [ -z "$TARGET" ] && continue
+          while read -r TARGET || [ -n "${TARGET:-}" ]; do
+            [ -z "${TARGET:-}" ] && continue
             SAFENAME="$(echo "$TARGET" | tr -cd 'A-Za-z0-9.-')"
             OUT="${OUT_ROOT}/${SAFENAME}"
             mkdir -p "$OUT" && cd "$OUT"
 
             subfinder -d "$TARGET" -silent -o subs.txt || true
-            sort -fu subs.txt -o subs.txt
+            sort -fu subs.txt -o subs.txt || true
 
             httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
                   -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
@@ -90,17 +109,19 @@ jobs:
             } > report.md
 
             cd - >/dev/null
-          done < ".scan/targets.txt"
+          done < .scan/targets.txt
 
       - name: Upload artifacts (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: scan-results-${{ github.run_id }}
-          path: out_*/**
+          path: |
+            logs/
+            out_*/**
           if-no-files-found: warn
 
-      - name: Commit reports to scan-reports (always)
+      - name: Push reports or open PR (always)
         if: always()
         env:
           GH_REPO: ${{ github.repository }}
@@ -112,14 +133,9 @@ jobs:
           git config user.email "scan-bot@users.noreply.github.com"
           git fetch origin
           git checkout -B scan-reports
-          REPORTS_DIR="reports/$TS"
-          mkdir -p "$REPORTS_DIR"
-          find . -maxdepth 1 -type d -name 'out_*' -exec bash -c 'mv "$0"/* "$1/"' bash "$REPORTS_DIR" \; || true
+          mkdir -p "reports/$TS"
+          find . -maxdepth 1 -type d -name 'out_*' -exec bash -c 'mv "$0"/ "reports/'"$TS"'/"; rmdir "$0"' {} \; || true
           git add reports || true
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-          git commit -m "chore(reports): add scan results $TS (rate=${{ steps.cfg.outputs.RATE }}, conc=${{ steps.cfg.outputs.CONC }})"
+          git commit -m "chore(reports): add scan results $TS" || true
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
-          git push origin scan-reports
+          git push origin scan-reports || true
