@@ -1,0 +1,72 @@
+name: External Scan + Tamer
+
+on:
+  push:
+    branches:
+      - 'automation/full-scan-20250901_111620'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create logs & out_scan dirs
+        run: |
+          mkdir -p logs out_scan reports
+
+      - name: Preflight info
+        run: |
+          echo "ref=$GITHUB_REF"       > logs/preflight.txt
+          echo "sha=$GITHUB_SHA"       >> logs/preflight.txt
+          echo "actor=$GITHUB_ACTOR"   >> logs/preflight.txt
+          echo "event=$GITHUB_EVENT_NAME" >> logs/preflight.txt
+          echo "targets: ziana-scan.bensalemyassine498.workers.dev" >> logs/preflight.txt
+          echo "params: RATE=2, CONCURRENCY=10"                   >> logs/preflight.txt
+
+      - name: Run subfinder
+        uses: projectdiscovery/subfinder-action@v1
+        with:
+          domain: ziana-scan.bensalemyassine498.workers.dev
+          output: out_scan/subs.txt
+
+      - name: Run httpx
+        uses: projectdiscovery/httpx-action@v1
+        with:
+          input-file: out_scan/subs.txt
+          output: out_scan/live.txt
+          silent: true
+
+      - name: Run nuclei
+        uses: projectdiscovery/nuclei-action@v2
+        with:
+          list: out_scan/live.txt
+          severity: medium,high,critical
+          output: out_scan/report.jsonl
+
+      - name: Run Tamer Vulnerability Scanner
+        run: |
+          apt-get update && apt-get install -y golang git
+          git clone https://github.com/Tamer734/Tamer-Vulnerability-Scanner.git tamer
+          cd tamer
+          go mod tidy
+          go build -o tvs ./cmd/tamer-vulnerability-scanner
+          ../tvs -target ziana-scan.bensalemyassine498.workers.dev -output ../out_scan/tamer_report.json
+
+      - name: Consolidate human-readable report
+        run: |
+          jq -r '[.matched-at, .info.name, .info.severity] | @tsv' out_scan/report.jsonl > reports/report-nuclei.tsv
+          echo -e "target\tissue\ttype" > reports/report-tamer.tsv
+          jq -r '.[] | [.target, .issue, .type] | @tsv' out_scan/tamer_report.json >> reports/report-tamer.tsv
+
+      - name: Upload all artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-scan-output
+          path: |
+            logs/
+            out_scan/
+            reports/
