@@ -1,0 +1,72 @@
+name: Security Full Scan (Fixed)
+
+on:
+  push:
+    branches: ['automation/secscan-all-fix-20250901_112409']
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup directories
+        run: mkdir -p logs out_scan reports
+
+      - name: Preflight info
+        run: |
+          echo "ref=$GITHUB_REF"       > logs/preflight.txt
+          echo "sha=$GITHUB_SHA"       >> logs/preflight.txt
+          echo "actor=$GITHUB_ACTOR"   >> logs/preflight.txt
+          echo "event=$GITHUB_EVENT_NAME" >> logs/preflight.txt
+
+      - name: ProjectDiscovery full scan
+        continue-on-error: true
+        run: |
+          subfinder -d ziana-scan.bensalemyassine498.workers.dev -silent -o out_scan/subs.txt || true
+          httpx -l out_scan/subs.txt -silent -o out_scan/live.txt            || true
+          nuclei -l out_scan/live.txt -severity medium,high,critical -o out_scan/report.jsonl || true
+
+      - name: Tamer Vulnerability Scanner
+        continue-on-error: true
+        run: |
+          apt-get update && apt-get install -y golang git
+          git clone https://github.com/Tamer734/Tamer-Vulnerability-Scanner.git tamer
+          cd tamer && go build -o tvs ./cmd/tamer-vulnerability-scanner
+          ../tvs -target ziana-scan.bensalemyassine498.workers.dev -output ../out_scan/tamer.json || true
+
+      - name: OWASP ZAP DAST
+        continue-on-error: true
+        uses: zaproxy/action-full-scan@v0.5.0
+        with:
+          target: "https://ziana-scan.bensalemyassine498.workers.dev"
+          rules_file_name: ""
+
+      - name: OSV Dependency Scan
+        continue-on-error: true
+        uses: google/osv-scanner-action@v2
+        with:
+          args: "--projects . --format sarif"
+
+      - name: Consolidate reports
+        run: |
+          mkdir -p reports
+          jq -r '[.matched-at, .info.name, .info.severity] |
+                 @tsv' out_scan/report.jsonl > reports/nuclei.tsv
+          jq -r '.[] | [.target, .issue, .type] |
+                 @tsv' out_scan/tamer.json   > reports/tamer.tsv
+          jq -r '.runs[]?.alerts[] | [.rule.id, .level, .message] |
+                 @tsv' zap_report.json       > reports/zap.tsv || echo "no ZAP alerts"
+          jq -r '.results[]? | [.dependency, .severity] |
+                 @tsv' osv-results.sarif      > reports/osv.tsv || echo "no dependency issues"
+
+      - name: Upload all artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secscan-all-${ github.run_id }
+          path: |
+            logs/**
+            out_scan/**/*
+            reports/**/*
