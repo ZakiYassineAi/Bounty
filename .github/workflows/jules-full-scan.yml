@@ -1,0 +1,31 @@
+name: Jules Full Security Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */12 * * *" # كل 12 ساعة
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Jules CLI
+        run: |
+          curl -sSL https://get.jules.dev/install.sh | bash
+          echo "$HOME/.jules/bin" >> $GITHUB_PATH
+
+      - name: Run Jules Pipeline
+        run: jules run jules.yml --log reports/diagnostics.log --retry 2
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results
+          path: |
+            out_scan/
+            reports/
+          if-no-files-found: warn
