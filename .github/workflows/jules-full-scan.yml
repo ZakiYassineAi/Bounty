@@ -1,31 +1,144 @@
-name: Jules Full Security Scan
+name: Jules Full Security Scan (hardened)
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target domain or host list file path'
+        required: false
+        default: 'ziana-scan.bensalemyassine498.workers.dev'
+      sev:
+        description: 'Nuclei severities'
+        required: false
+        default: 'medium,high,critical'
   schedule:
-    - cron: "0 */12 * * *" # كل 12 ساعة
+    - cron: "0 */12 * * *"
+
+concurrency:
+  group: jules-full-scan
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Jules CLI
+      - name: Preflight context
         run: |
-          curl -sSL https://get.jules.dev/install.sh | bash
+          mkdir -p logs out_scan reports
+          {
+            echo "ref=${GITHUB_REF}"
+            echo "sha=${GITHUB_SHA}"
+            echo "actor=${GITHUB_ACTOR}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "target=${{ inputs.target }}"
+            echo "sev=${{ inputs.sev }}"
+          } > logs/preflight.txt
+
+      - name: Try install Jules (best-effort)
+        id: jules_install
+        continue-on-error: true
+        run: |
+          set -e
+          curl -fsSL https://get.jules.dev/install.sh | bash
           echo "$HOME/.jules/bin" >> $GITHUB_PATH
+          echo "installed=1" >> $GITHUB_OUTPUT
 
-      - name: Run Jules Pipeline
-        run: jules run jules.yml --jowad=full-scan --log reports/diagnostics.log
+      - name: Run via Jules if available
+        id: jules_run
+        if: steps.jules_install.outputs.installed == '1'
+        continue-on-error: true
+        env:
+          JOWAD_FULL: "full"
+        run: |
+          set -o pipefail
+          # Inject target & sev into env for the pipeline if needed
+          echo "Target=${{ inputs.target }}" >> logs/jules_env.txt
+          echo "Severity=${{ inputs.sev }}" >> logs/jules_env.txt
+          # Run pipeline; log captured
+          jules run jules.yml --jowad=full-scan --log reports/diagnostics.log || echo "JULES_FAIL" > logs/jules_fail.flag
 
-      - name: Upload scan results
+      - name: Fallback scan via Docker (no-install path)
+        if: always() && steps.jules_run.outcome != 'success'
+        run: |
+          set -e
+          mkdir -p out_scan reports
+          TARGET="${{ inputs.target }}"
+          SEV="${{ inputs.sev }}"
+
+          echo "[Fallback] Starting containerized scan..." | tee -a logs/fallback.txt
+
+          # Subfinder
+          docker run --rm -v "$PWD:/data" projectdiscovery/subfinder:latest \
+            -d "$TARGET" -silent -o /data/out_scan/subs.txt || echo "subfinder_error" >> logs/fallback.txt
+
+          # Httpx
+          if [ -s out_scan/subs.txt ]; then
+            docker run --rm -v "$PWD:/data" projectdiscovery/httpx:latest \
+              -l /data/out_scan/subs.txt -silent -o /data/out_scan/live.txt || echo "httpx_error" >> logs/fallback.txt
+          else
+            touch out_scan/live.txt
+          fi
+
+          # Nuclei (update templates best-effort, then scan)
+          docker run --rm -v "$PWD:/data" projectdiscovery/nuclei:latest -update -silent || true
+          if [ -s out_scan/live.txt ]; then
+            docker run --rm -v "$PWD:/data" projectdiscovery/nuclei:latest \
+              -l /data/out_scan/live.txt -severity "$SEV" -jsonl -o /data/out_scan/report.jsonl || echo "nuclei_error" >> logs/fallback.txt
+          else
+            touch out_scan/report.jsonl
+          fi
+
+          # TSV without jq (Python)
+          python3 - << 'PY'
+import json,sys,os
+inp="out_scan/report.jsonl"; outp="reports/report.tsv"
+os.makedirs("reports", exist_ok=True)
+if not os.path.exists(inp) or os.stat(inp).st_size==0:
+    open(outp,"w").write("No findings\t-\t-\n"); sys.exit(0)
+lines=[]
+with open(inp,"r",encoding="utf-8",errors="ignore") as f:
+    for line in f:
+        if not line.strip(): continue
+        try:
+            j=json.loads(line)
+            matched=j.get("matched-at","-")
+            info=j.get("info",{})
+            name=info.get("name","-")
+            sev=info.get("severity","-")
+            lines.append(f"{matched}\t{name}\t{sev}")
+        except Exception: pass
+open(outp,"w",encoding="utf-8").write("\n".join(lines) if lines else "No findings\t-\t-\n")
+PY
+
+      - name: Summarize to job summary
+        if: always()
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Target: ${{ inputs.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Severities: ${{ inputs.sev }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/report.tsv ]; then
+            echo "### First 20 lines of report.tsv" >> $GITHUB_STEP_SUMMARY
+            head -n 20 reports/report.tsv | sed 's/|/\\|/g' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No report generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload artifacts (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: scan-results
           path: |
+            logs/
             out_scan/
             reports/
           if-no-files-found: warn
