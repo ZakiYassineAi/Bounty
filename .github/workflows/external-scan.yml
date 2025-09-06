@@ -26,33 +26,32 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Preflight ensure config and log context
-        run: |
-          set -euo pipefail
-          mkdir -p .scan logs
-          # إن لم يوجد target، أنشئ قيمة افتراضية (يمكن تعديلها لاحقًا)
-          [ -s .scan/targets.txt ] || echo "ziana-scan.bensalemyassine498.workers.dev" > .scan/targets.txt
-          # معلمات افتراضية
-          [ -s .scan/params.env ] || printf "RATE=2\nCONCURRENCY=10\n" > .scan/params.env
-          echo "== GITHUB CONTEXT ==" | tee -a logs/preflight.txt
-          echo "ref=$GITHUB_REF sha=$GITHUB_SHA actor=$GITHUB_ACTOR event=$GITHUB_EVENT_NAME" | tee -a logs/preflight.txt
-          echo "targets:" | tee -a logs/preflight.txt
-          cat .scan/targets.txt | sed 's/^/ - /' | tee -a logs/preflight.txt
-          echo "params:" | tee -a logs/preflight.txt
-          cat .scan/params.env | sed 's/^/ - /' | tee -a logs/preflight.txt
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # Change to your region
 
-      - name: Install tools (with retry)
+      - name: Install tools and s3fs
         run: |
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -y || (sleep 5 && sudo apt-get update -y)
-          sudo apt-get install -y unzip curl jq || (sleep 5 && sudo apt-get install -y unzip curl jq)
+          sudo apt-get install -y unzip curl jq s3fs || (sleep 5 && sudo apt-get install -y unzip curl jq s3fs)
           curl -fsSL https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder-linux-amd64.zip -o subfinder.zip
           unzip -o subfinder.zip && sudo mv subfinder /usr/local/bin/ && rm subfinder.zip
           curl -fsSL https://github.com/projectdiscovery/httpx/releases/latest/download/httpx-linux-amd64.zip -o httpx.zip
           unzip -o httpx.zip && sudo mv httpx /usr/local/bin/ && rm httpx.zip
           curl -fsSL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei-linux-amd64.zip -o nuclei.zip
           unzip -o nuclei.zip && sudo mv nuclei /usr/local/bin/ && rm nuclei.zip
+
+      - name: Mount S3 Bucket
+        run: |
+          echo "${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}" > ~/.passwd-s3fs
+          chmod 600 ~/.passwd-s3fs
+          mkdir -p /mnt/s3
+          s3fs ${{ secrets.S3_BUCKET_NAME }} /mnt/s3 -o passwd_file=~/.passwd-s3fs -o url=https://s3.amazonaws.com -o use_cache=/tmp -o allow_other
 
       - name: Load params
         id: cfg
@@ -81,57 +80,19 @@ jobs:
             LOG_FILE="${PWD}/logs/${SAFENAME}_${TS}.log"
             mkdir -p "$OUT" && cd "$OUT"
             echo "--- Starting scan for $TARGET at $(date) ---" | tee -a "$LOG_FILE"
-
-            echo "Running subfinder..." | tee -a "$LOG_FILE"
             subfinder -d "$TARGET" -silent -o subs.txt 2>> "$LOG_FILE" || true
-
-            echo "Running httpx..." | tee -a "$LOG_FILE"
             httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
                   -ports 443,80,8080,8443,8000,3000 -silent -o live.txt 2>> "$LOG_FILE" || true
-
-            echo "Running nuclei..." | tee -a "$LOG_FILE"
             nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
                    -tags cve,exposed-panels,misconfiguration \
                    -severity medium,high,critical \
                    -jsonl -silent -o nuclei.jsonl 2>> "$LOG_FILE" || true
-
-            echo "Generating high-severity report..." | tee -a "$LOG_FILE"
             jq -r 'select(.info.severity=="high" or .info.severity=="critical")
                    | [."matched-at", .info.name, .info.severity, (.templateID // "")]
                    | @tsv' nuclei.jsonl > high_findings.tsv 2>> "$LOG_FILE" || true
-
-            echo "Generating executive summary..." | tee -a "$LOG_FILE"
-            {
-              echo "# Executive summary"
-              echo "- Target: $TARGET"
-              echo "- Subdomains: $(wc -l < subs.txt 2>/dev/null || echo 0)"
-              echo "- Live services: $(wc -l < live.txt 2>/dev/null || echo 0)"
-              echo "- Findings: $(wc -l < nuclei.jsonl 2>/dev/null || echo 0)"
-              echo "- High/Critical: $(wc -l < high_findings.tsv 2>/dev/null || echo 0)"
-              echo ""
-              echo "## High/Critical details"
-              if [ -s high_findings.tsv ]; then
-                awk -F'\t' '{printf "- %s — %s (%s) [template: %s]\n",$1,$2,$3,$4}' high_findings.tsv
-              else
-                echo "- None in this run."
-              fi
-            } > report.md
-
-            echo "--- Finished scan for $TARGET at $(date) ---" | tee -a "$LOG_FILE"
             cd - >/dev/null
           done < .scan/targets.txt
-
-      - name: Upload results to S3
-        if: always()
-        uses: aws-actions/s3-sync@v2
-        with:
-          bucket: my-scan-results-bucket # Replace with your bucket name
-          region: us-east-1 # Replace with your bucket region
-          source-dir: out_${{ env.TIMESTAMP }}
-          dest-dir: scans/${{ github.run_id }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          rsync -av --exclude='.git/' "$OUT_ROOT/" "/mnt/s3/scans/${TS}/"
 
       - name: Upload artifacts as fallback
         if: always()
@@ -155,16 +116,13 @@ jobs:
           git config user.email "scan-bot@users.noreply.github.com"
           git fetch origin
           git checkout -b "$BRANCH_NAME"
-
           RESULTS_DIR="reports/${{ env.TIMESTAMP }}"
           mkdir -p "$RESULTS_DIR"
-          find . -maxdepth 1 -type d -name 'out_*' -exec mv {} "${RESULTS_DIR}/" \;
-
+          mv out_${{ env.TIMESTAMP }} "${RESULTS_DIR}/"
           if [ -z "$(git status --porcelain=v1 reports)" ]; then
             echo "No new scan results to commit."
             exit 0
           fi
-
           git add reports/
           git commit -m "chore(reports): Add scan results from ${{ env.TIMESTAMP }}"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
@@ -189,6 +147,12 @@ jobs:
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
             -d text="📡 External Scan Finished\nRepo: ${{ github.repository }}\nRun: ${{ github.run_id }}\nStatus: ${{ steps.scan.outcome }}"
+
+      - name: Clean Up
+        if: always()
+        run: |
+          fusermount -u /mnt/s3 || true
+          rm -f ~/.passwd-s3fs
 
       - name: Final Status
         if: always()
