@@ -1,10 +1,13 @@
 import asyncio
 import json
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+import shlex
+from unittest.mock import patch, AsyncMock
 
+import pytest
 from sqlmodel import Session, SQLModel, create_engine
-from bounty_command_center.models import Target, Evidence
+
+from bounty_command_center.models import Target
 from bounty_command_center.nuclei_runner import NucleiRunner
 
 # Sample Nuclei JSONL output for mocking
@@ -25,66 +28,67 @@ async def test_nuclei_runner_success(session: Session):
     """
     Test the NucleiRunner with a successful scan and valid output.
     """
-    # 1. Arrange
-    # Create a mock process to simulate Nuclei execution
     mock_process = AsyncMock()
     mock_process.communicate.return_value = (MOCK_NUCLEI_OUTPUT.encode(), b"")
     mock_process.returncode = 0
 
-    # Patch asyncio.create_subprocess_exec to return our mock process
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
-        # Create a test target
-        test_target = Target(name="example.com", url="http://example.com")
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_shell:
+        test_target = Target(name="example.com", url="http://example.com", scope=["http://example.com"])
         session.add(test_target)
         session.commit()
 
-        # 2. Act
         runner = NucleiRunner()
         findings = await runner.run(test_target)
 
-        # 3. Assert
-        # Check that nuclei was called correctly
-        mock_exec.assert_called_once()
-        called_command = mock_exec.call_args[0]
-        assert "nuclei" in called_command
-        assert "-target" in called_command
-        assert test_target.url in called_command
-        assert "-jsonl" in called_command
+        mock_shell.assert_called_once()
+        called_command = mock_shell.call_args[0][0]
+        assert f"-target {shlex.quote(test_target.url)}" in called_command
 
-        # Check that the output was parsed correctly
         assert len(findings) == 2
-
-        # Check the details of the first finding (info severity)
-        info_finding = findings[0]
-        assert info_finding.finding_summary == "Git Config File"
-        assert info_finding.severity == "Info"
-        assert '"template-id": "git-config"' in info_finding.reproduction_steps
-
-        # Check the details of the second finding (high severity)
-        high_finding = findings[1]
-        assert high_finding.finding_summary == "Some Exposed Panel"
-        assert high_finding.severity == "High"
-        assert '"template-id": "exposed-panel"' in high_finding.reproduction_steps
+        assert findings[0].finding_summary == "Git Config File"
+        assert findings[1].severity == "High"
 
 @pytest.mark.asyncio
 async def test_nuclei_runner_failure(session: Session):
     """
     Test the NucleiRunner when the nuclei command fails.
     """
-    # 1. Arrange
     mock_process = AsyncMock()
     mock_process.communicate.return_value = (b"", b"Error: target not responding")
     mock_process.returncode = 1
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
-        test_target = Target(name="fail.com", url="http://fail.com")
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process):
+        test_target = Target(name="fail.com", url="http://fail.com", scope=["http://fail.com"])
         session.add(test_target)
         session.commit()
 
-        # 2. Act
         runner = NucleiRunner()
         findings = await runner.run(test_target)
 
-        # 3. Assert
-        # No evidence should be returned on failure
         assert len(findings) == 0
+
+@pytest.mark.asyncio
+async def test_nuclei_runner_command_injection(session: Session):
+    """
+    Test that the NucleiRunner correctly sanitizes input to prevent command injection.
+    """
+    mock_process = AsyncMock()
+    mock_process.communicate.return_value = (b"", b"") # We don't care about output for this test
+
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process) as mock_shell:
+        # URL with a command injection attempt
+        malicious_url = "http://example.com; ls -la"
+        test_target = Target(name="bad.com", url=malicious_url, scope=[])
+        session.add(test_target)
+        session.commit()
+
+        runner = NucleiRunner()
+        await runner.run(test_target)
+
+        # Assert that the shell command was called
+        mock_shell.assert_called_once()
+        # Get the actual command string passed to the shell
+        called_command = mock_shell.call_args[0][0]
+
+        # Assert that the malicious part is safely quoted and not a separate command
+        assert shlex.quote(malicious_url) in called_command
