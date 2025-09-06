@@ -70,28 +70,35 @@ jobs:
           set -euo pipefail
           TS="$(date -u +%Y%m%d_%H%M%S)"
           OUT_ROOT="out_${TS}"
-          mkdir -p "$OUT_ROOT"
+          mkdir -p "$OUT_ROOT" logs
           while read -r TARGET || [ -n "${TARGET:-}" ]; do
             [ -z "${TARGET:-}" ] && continue
             SAFENAME="$(echo "$TARGET" | tr -cd 'A-Za-z0-9.-')"
             OUT="${OUT_ROOT}/${SAFENAME}"
+            LOG_FILE="${PWD}/logs/${SAFENAME}_${TS}.log"
             mkdir -p "$OUT" && cd "$OUT"
+            echo "--- Starting scan for $TARGET at $(date) ---" | tee -a "$LOG_FILE"
 
-            subfinder -d "$TARGET" -silent -o subs.txt || true
-            sort -fu subs.txt -o subs.txt || true
+            echo "Running subfinder..." | tee -a "$LOG_FILE"
+            subfinder -d "$TARGET" -silent -o subs.txt 2>> "$LOG_FILE" || true
+            sort -fu subs.txt -o subs.txt
 
+            echo "Running httpx..." | tee -a "$LOG_FILE"
             httpx -l subs.txt -follow-redirects -status-code -title -tech-detect \
-                  -ports 443,80,8080,8443,8000,3000 -silent -o live.txt || true
+                  -ports 443,80,8080,8443,8000,3000 -silent -o live.txt 2>> "$LOG_FILE" || true
 
+            echo "Running nuclei..." | tee -a "$LOG_FILE"
             nuclei -l live.txt -rate-limit "$RATE" -c "$CONC" -timeout 5 -retries 1 \
                    -tags cve,exposed-panels,misconfiguration \
                    -severity medium,high,critical \
-                   -jsonl -silent -o nuclei.jsonl || true
+                   -jsonl -silent -o nuclei.jsonl 2>> "$LOG_FILE" || true
 
+            echo "Generating high-severity report..." | tee -a "$LOG_FILE"
             jq -r 'select(.info.severity=="high" or .info.severity=="critical")
-                   | [.matched-at, .info.name, .info.severity, (.templateID // "")]
-                   | @tsv' nuclei.jsonl > high_findings.tsv || true
+                   | [."matched-at", .info.name, .info.severity, (.templateID // "")]
+                   | @tsv' nuclei.jsonl > high_findings.tsv 2>> "$LOG_FILE" || true
 
+            echo "Generating executive summary..." | tee -a "$LOG_FILE"
             {
               echo "# Executive summary"
               echo "- Target: $TARGET"
@@ -108,6 +115,7 @@ jobs:
               fi
             } > report.md
 
+            echo "--- Finished scan for $TARGET at $(date) ---" | tee -a "$LOG_FILE"
             cd - >/dev/null
           done < .scan/targets.txt
 
@@ -121,7 +129,7 @@ jobs:
             out_*/**
           if-no-files-found: warn
 
-      - name: Push reports or open PR (always)
+      - name: Commit and Push Reports
         if: always()
         env:
           GH_REPO: ${{ github.repository }}
@@ -129,13 +137,24 @@ jobs:
         run: |
           set -euo pipefail
           TS="$(date -u +%Y%m%d_%H%M%S)"
+          BRANCH_NAME="scan-reports/${TS}"
           git config user.name "scan-bot"
           git config user.email "scan-bot@users.noreply.github.com"
           git fetch origin
-          git checkout -B scan-reports
-          mkdir -p "reports/$TS"
-          find . -maxdepth 1 -type d -name 'out_*' -exec bash -c 'mv "$0"/ "reports/'"$TS"'/"; rmdir "$0"' {} \; || true
-          git add reports || true
-          git commit -m "chore(reports): add scan results $TS" || true
+          git checkout -b "$BRANCH_NAME"
+
+          # Move results into a structured directory
+          RESULTS_DIR="reports/${TS}"
+          mkdir -p "$RESULTS_DIR"
+          find . -maxdepth 1 -type d -name 'out_*' -exec mv {} "${RESULTS_DIR}/" \;
+
+          # Check if there are any results to commit
+          if [ -z "$(git status --porcelain=v1 reports)" ]; then
+            echo "No new scan results to commit."
+            exit 0
+          fi
+
+          git add reports/
+          git commit -m "chore(reports): Add scan results from ${TS}"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
-          git push origin scan-reports || true
+          git push origin "$BRANCH_NAME"
