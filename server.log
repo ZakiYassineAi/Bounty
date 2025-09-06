@@ -1,3 +1,2 @@
 INFO:     Will watch for changes in these directories: ['/app']
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [3327] using StatReload
+ERROR:    [Errno 98] Address already in use
