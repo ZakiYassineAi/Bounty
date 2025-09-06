@@ -5,6 +5,11 @@ colorama
 PyYAML
 typer
 rich
+fastapi
+python-jose
+passlib
+python-multipart
 celery
 redis
 psutil
+uvicorn

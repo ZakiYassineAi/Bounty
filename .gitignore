@@ -5,6 +5,13 @@ __pycache__/
 # Database files
 *.json
 
+# Log files
+server.log
+app.log
+
+# Celery files
+celerybeat-schedule
+
 # IDE and OS files
 .idea/
 .vscode/
