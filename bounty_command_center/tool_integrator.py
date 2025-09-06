@@ -3,6 +3,7 @@ from .models import Target, Evidence
 from .subfinder_runner import SubfinderRunner
 from .dalfox_runner import DalfoxRunner
 from .sqlmap_runner import SqlmapRunner
+from .nuclei_runner import NucleiRunner
 from typing import List
 
 class ToolIntegrator:
@@ -21,6 +22,7 @@ class ToolIntegrator:
             'Subfinder': SubfinderRunner(),
             'Dalfox': DalfoxRunner(),
             'Sqlmap': SqlmapRunner(),
+            'Nuclei': NucleiRunner(),
         }
 
     async def run_all_scans(self) -> List[Evidence]:
