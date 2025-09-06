@@ -8,4 +8,9 @@ rich
 celery
 redis
 psutil
+uvicorn
+fastapi
+python-jose
+passlib
+python-multipart
 markdown

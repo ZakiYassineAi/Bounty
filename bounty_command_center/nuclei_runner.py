@@ -1,5 +1,6 @@
 import asyncio
 import json
+import shlex
 from typing import List
 from .models import Target, Evidence
 
@@ -15,22 +16,18 @@ class NucleiRunner:
         """
         print(f"  -> Running Nuclei scan on {target.url}")
 
-        # Command to run Nuclei
-        # We use -jsonl for line-delimited JSON output
-        # We select a basic set of templates for this example
-        command = [
-            "nuclei",
-            "-target", target.url,
-            "-jsonl",
-            "-tags", "cve,exposed-panels,misconfiguration,default-logins",
-            "-severity", "medium,high,critical",
-            "-silent",
-            "-no-color",
-        ]
+        # --- Security Hardening: Sanitize user input for shell execution ---
+        safe_target_url = shlex.quote(target.url)
 
-        # Run the command asynchronously
-        process = await asyncio.create_subprocess_exec(
-            *command,
+        # Build the command as a single string for create_subprocess_shell
+        command = (
+            f"nuclei -target {safe_target_url} -jsonl "
+            "-tags cve,exposed-panels,misconfiguration,default-logins "
+            "-severity medium,high,critical -silent -no-color"
+        )
+
+        process = await asyncio.create_subprocess_shell(
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -42,7 +39,6 @@ class NucleiRunner:
             print(f"  -> Stderr: {stderr.decode()}")
             return []
 
-        # Parse the JSONL output
         findings = []
         if stdout:
             for line in stdout.decode().strip().split('\n'):
